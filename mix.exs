@@ -9,6 +9,7 @@ defmodule Couchx.MixProject do
       name: "Couchx",
       description: "Limited CouchDb Adapter for Ecto",
       start_permanent: Mix.env() == :prod,
+      package: package(),
       deps: deps()
     ]
   end
@@ -26,10 +27,21 @@ defmodule Couchx.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:earmark, "~> 0.1", only: :dev},
       {:ecto_sql, "~> 3.0"},
+      {:ex_doc, "~> 0.11", only: :dev},
       {:httpoison, "~> 1.8"},
       {:inflex, "~> 2.0.0"},
       {:jason, "~>1.1"}
     ]
+  end
+
+  defp package do
+    [
+     files: ["lib", "mix.exs", "README.md"],
+     maintainers: ["Javier Guerra"],
+     licenses: ["MIT"],
+     links: %{"GitHub" => "https://github.com/javierg/couchx"}
+     ]
   end
 end
