@@ -4,7 +4,7 @@ defmodule Couchx.MixProject do
   def project do
     [
       app: :couchx,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.12",
       name: "Couchx",
       description: "Limited CouchDb Adapter for Ecto",
@@ -41,7 +41,10 @@ defmodule Couchx.MixProject do
      files: ["lib", "mix.exs", "README.md"],
      maintainers: ["Javier Guerra"],
      licenses: ["MIT"],
-     links: %{"GitHub" => "https://github.com/javierg/couchx"}
+     links: %{
+       "GitHub" => "https://github.com/javierg/couchx",
+       "Docs" => "https://hexdocs.pm/couchx"
+       }
      ]
   end
 end
