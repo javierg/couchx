@@ -24,7 +24,7 @@ It adds a simple way to execute JS view queries with:
 
 Not ideal, so open to suggestions here.
 
-###TODO:
+## TODO:
 
 * Repo.insert_all
 * Repo.delete_all
