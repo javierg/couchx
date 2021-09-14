@@ -26,6 +26,10 @@ defmodule Couchx.DbConnection do
     GenServer.call(server, {:get, resource, query, options})
   end
 
+  def all_docs(server, keys, options \\ []) do
+    GenServer.call(server, {:all_docs, keys, options})
+  end
+
   def delete(server, resource, rev) do
     GenServer.call(server, {:delete, resource, rev})
   end
@@ -91,6 +95,17 @@ defmodule Couchx.DbConnection do
   def handle_call(:info, _from, state) do
     request(:get, state[:base_url], [headers: state[:base_headers], options: state[:options]])
     |> call_response(state)
+  end
+
+  def handle_call({:all_docs, keys, options}, _from, state) do
+    headers   = state[:base_headers]
+    with_docs = options[:include_docs] || false
+    url       = state[:base_url] <> "/_all_docs?include_docs=#{with_docs}"
+    body      = Jason.encode!(%{keys: keys})
+
+    request(:post, url, body, [headers: headers, options: []])
+    |> call_response(state)
+
   end
 
   def handle_call({:bulk_docs, docs, options}, _from, state) do

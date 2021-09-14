@@ -156,6 +156,8 @@ defmodule Couchx.Adapter do
     end
 
     case do_query(meta[:pid], keys, namespace, params) do
+      {:ok, %{"rows" => []}} ->
+        {0, []}
       {:ok, %{"rows" => rows}} ->
         Enum.map(rows, fn(row)->
           row
@@ -250,7 +252,8 @@ defmodule Couchx.Adapter do
     doc_ids = Enum.map(ids, &namespace_id(namespace, &1))
               |> Enum.map(&URI.decode_www_form/1)
 
-    Couchx.DbConnection.get(server, "_all_docs", [keys: Jason.encode!(doc_ids), include_docs: true])
+    Couchx.DbConnection.all_docs(server, doc_ids, include_docs: true)
+    |> sanitize_collection
   end
 
   defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _]) do
@@ -444,5 +447,14 @@ defmodule Couchx.Adapter do
 
   defp handle_delete_response({:error, error}) do
     raise error
+  end
+
+  defp sanitize_collection({:ok, %{"rows" => rows}}) do
+    rows = Enum.filter(rows, &Map.get(&1, "doc"))
+    {:ok, %{"rows" => rows}}
+  end
+
+  defp sanitize_collection({:error, error}) do
+    {:error, error}
   end
 end
