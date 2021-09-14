@@ -8,6 +8,7 @@ The supported functions in this version are:
 
 ```
 Repo.get Struct, doc_id
+Repo.all from doc in Struct, where: doc._id in ^doc_ids_list
 Repo.insert Struct, doc
 Repo.delete Struct, %{_id: doc_id}
 Repo.update changeset

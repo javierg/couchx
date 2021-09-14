@@ -242,6 +242,17 @@ defmodule Couchx.Adapter do
     {fields, module}
   end
 
+  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids) when is_list(ids) do
+    do_query(server, [%{_id: ids}], namespace, [])
+  end
+
+  defp do_query(server, [%{_id: ids}], namespace, []) when is_list(ids) do
+    doc_ids = Enum.map(ids, &namespace_id(namespace, &1))
+              |> Enum.map(&URI.decode_www_form/1)
+
+    Couchx.DbConnection.get(server, "_all_docs", [keys: Jason.encode!(doc_ids), include_docs: true])
+  end
+
   defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _]) do
     Couchx.DbConnection.get(server, namespace_id(namespace, id))
   end
