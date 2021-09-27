@@ -158,18 +158,15 @@ defmodule Couchx.Adapter do
     case do_query(meta[:pid], keys, namespace, params) do
       {:ok, %{"rows" => []}} ->
         {0, []}
+      {:ok, %{"docs" => []}} ->
+        {0, []}
       {:ok, %{"docs" => docs}} ->
         Enum.map(docs, fn(doc)->
-          doc
-          |> Map.take(fields)
-          |> Map.values
+          process_docs(doc, fields, fields_meta)
         end) |> execute_response
       {:ok, %{"rows" => rows}} ->
         Enum.map(rows, fn(row)->
-          row
-          |> Map.get("doc")
-          |> Map.take(fields)
-          |> Map.values
+          process_docs(row["doc"], fields, fields_meta)
         end) |> execute_response
       {:ok, response} ->
         process_docs(response, fields, fields_meta)
@@ -384,9 +381,11 @@ defmodule Couchx.Adapter do
   end
 
   defp process_docs(doc, fields, nil) do
-    doc
-    |> Map.take(fields)
-    |> Map.values
+    fields
+    |> Enum.reduce([], fn({key, value}, acc)->
+         confirmed_value = if doc[key], do: value, else: nil
+         acc ++ confirmed_value
+       end)
   end
 
   # TODO: move to process docs module to be imported
