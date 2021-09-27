@@ -158,6 +158,12 @@ defmodule Couchx.Adapter do
     case do_query(meta[:pid], keys, namespace, params) do
       {:ok, %{"rows" => []}} ->
         {0, []}
+      {:ok, %{"docs" => docs}} ->
+        Enum.map(docs, fn(doc)->
+          doc
+          |> Map.take(fields)
+          |> Map.values
+        end) |> execute_response
       {:ok, %{"rows" => rows}} ->
         Enum.map(rows, fn(row)->
           row
@@ -275,7 +281,26 @@ defmodule Couchx.Adapter do
     Enum.map(rows, &Map.get(&1, "doc"))
   end
 
-  defp do_query(_, _, _, _), do: {:error, :not_implemented}
+  defp do_query(server, properties, namespace, values) when is_list(properties) do
+    selector = Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
+    Couchx.DbConnection.find(server, %{selector: selector})
+  end
+
+  defp process_property({key, {:^, [], [value_index]}}, acc, values) do
+    value = Enum.fetch!(values, value_index)
+    Map.put(acc, key, value)
+  end
+
+  defp process_property({key, value}, acc, _values) do
+    Map.put(acc, key, value)
+  end
+
+  defp process_property(property, acc, values) do
+    Enum.reduce(property, %{}, &process_property(&1, &2, values))
+    |> Map.merge(acc)
+  end
+
+  #defp do_query(_, _, _, _), do: {:error, :not_implemented}
 
   defp build_namespace(module) do
     module
