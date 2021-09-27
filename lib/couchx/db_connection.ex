@@ -50,6 +50,10 @@ defmodule Couchx.DbConnection do
     GenServer.call(server, {:delete_admin, name})
   end
 
+  def find(server, query, options \\ []) do
+    GenServer.call(server, {:find, query, options})
+  end
+
   def handle_call({:delete_admin, name}, _from, state) do
     url      = "#{state[:base_url]}/_users/org.couchdb.user:#{name}"
     opts     = [headers: state[:base_headers], options: state[:options]]
@@ -131,6 +135,16 @@ defmodule Couchx.DbConnection do
     url       = "#{state[:base_url]}/#{resource}#{query_str}"
 
     request(:get, url, [headers: headers, options: options])
+    |> call_response(state)
+  end
+
+  def handle_call({:find, query, options}, _from, state) do
+    headers   = state[:base_headers]
+    query_str = build_query_str(options[:query_str])
+    url       = "#{state[:base_url]}/_find#{query_str}"
+    body      = Jason.encode!(query)
+
+    request(:post, url, body, [headers: headers, options: options])
     |> call_response(state)
   end
 
