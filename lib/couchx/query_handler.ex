@@ -38,7 +38,7 @@ defmodule Couchx.QueryHandler do
   defp execute_response([]), do: {0, []}
 
   defp execute_response([item | _] = values) when is_list(item) do
-      {length(values), values}
+    {length(values), values}
   end
 
   defp execute_response(value), do: {1, [value]}
