@@ -1,4 +1,6 @@
 defmodule Couchx.Adapter do
+  alias Couchx.QueryHandler
+
   @moduledoc """
   Adapter to get basic query functionality into `Ecto` with `CouchDB`.
 
@@ -155,27 +157,8 @@ defmodule Couchx.Adapter do
       _-> all_fields
     end
 
-    case do_query(meta[:pid], keys, namespace, params) do
-      {:ok, %{"rows" => []}} ->
-        {0, []}
-      {:ok, %{"docs" => []}} ->
-        {0, []}
-      {:ok, %{"docs" => docs}} ->
-        Enum.map(docs, fn(doc)->
-          process_docs(doc, fields, fields_meta)
-        end) |> execute_response
-      {:ok, %{"rows" => rows}} ->
-        Enum.map(rows, fn(row)->
-          process_docs(row["doc"], fields, fields_meta)
-        end) |> execute_response
-      {:ok, response} ->
-        process_docs(response, fields, fields_meta)
-        |> execute_response
-      [] ->
-        {0, []}
-      {:error, reason} ->
-        raise Couchx.DbError, message: "#{reason}"
-    end
+    do_query(meta[:pid], keys, namespace, params)
+    |> QueryHandler.query_results(fields, fields_meta)
   end
 
   def create_admin(server, name, password) do
@@ -216,16 +199,6 @@ defmodule Couchx.Adapter do
   defp build_field_condition({{_, _, [{_, _, [0]}, key]}, _, _}), do: %{key => :empty}
   defp build_field_condition({expr, _, [{{_, _, [_, key]}, _, _}, value]}) do
     %{ key => %{ @query_map[expr] => value } }
-  end
-
-  defp execute_response([]), do: []
-  defp execute_response(values) when is_list(values) do
-    [item | _] = values
-    if is_list(item) do
-      {length(values), values}
-    else
-      {1, [values]}
-    end
   end
 
   defp fetch_fields({{resource, nil, _}}) do
@@ -375,43 +348,6 @@ defmodule Couchx.Adapter do
 
   defp fields_meta({_, {_, _, _, fields_meta}}), do: fields_meta
   defp fields_meta(_), do: nil
-
-  defp process_docs(rows, fields, meta) when is_list(rows) do
-    Enum.map(rows, &process_docs(&1, fields, meta))
-  end
-
-  defp process_docs(doc, fields, nil) do
-    fields
-    |> Enum.reduce([], fn({key, value}, acc)->
-         confirmed_value = if doc[key], do: value, else: nil
-         acc ++ confirmed_value
-       end)
-  end
-
-  # TODO: move to process docs module to be imported
-  defp process_docs(doc, fields, meta) do
-    template = doc_template(meta)
-    doc = Map.take(doc, fields)
-
-    template
-    |> Map.merge(doc)
-    |> Map.values
-  end
-
-  defp doc_template(fields) do
-    fields
-    |> Enum.reduce(%{}, fn({key, type}, acc)->
-         Map.put(acc, "#{key}", default_value(type))
-       end)
-  end
-
-  defp default_value(:string), do: ""
-  defp default_value(:integer), do: 0
-  defp default_value(:boolean), do: false
-  defp default_value({:array, _}), do: []
-  defp default_value(:map), do: %{}
-  defp default_value({:map, _}), do: %{}
-  defp default_value(:binary_id), do: ""
 
   # Pending implementation
 
