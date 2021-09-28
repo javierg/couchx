@@ -35,15 +35,13 @@ defmodule Couchx.QueryHandler do
     |> execute_response
   end
 
-  defp execute_response([]), do: []
-  defp execute_response(values) when is_list(values) do
-    [item | _] = values
-    if is_list(item) do
+  defp execute_response([]), do: {0, []}
+
+  defp execute_response([item | _] = values) when is_list(item) do
       {length(values), values}
-    else
-      {1, [values]}
-    end
   end
+
+  defp execute_response(value), do: {1, [value]}
 
   defp process_docs(rows, fields, meta) when is_list(rows) do
     Enum.map(rows, &process_docs(&1, fields, meta))
