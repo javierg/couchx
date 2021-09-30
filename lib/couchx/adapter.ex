@@ -66,6 +66,66 @@ defmodule Couchx.Adapter do
   ```
 
   Any Repo call inside the callback function will be run in a dynamically supervised connection.
+
+
+  ## Migrations
+
+  Couchx comes with a Mango index generator.
+
+  ### Example
+
+      $ mix couchx.gen.mango_index -r MyApp.Repo -n my-mango-index -f username,email
+
+  This will create a file under `priv/my_app/repo/index/my-mango-index.exs` with contents as:
+
+  ````
+  defmodule MyApp.Repo.Index.MyMangoIndex do
+    use Couchx.MangoIndex, repo_name: MyApp.Repo
+
+    def up do
+      create_index "my-mango-index" do
+        %{
+           fields: ["username", "email"],
+         }
+      end
+    end
+
+    def down do
+      drop_index "my-mango-index"
+    end
+  end
+
+  ````
+
+  The Map inside the `create_index` block will be added to the `index` json object, so any structure that can go there can be added here.
+  Currently only supported methods are
+
+  ### create_index(String.t(), (-> Map.t()))
+
+    - name: ID and Name for the index to be created in CouchDB, this will be used as `id` for the document persisted.
+    - fun: A block that returns a formated Map for the index to be created, it will be parsed as JSON to the body of the index document.
+
+  ### drop_index(String.t())
+
+    - name: Id and Name for the index document to be deleted
+
+  ### Examples
+
+      $ mix couchx.mango_index
+
+      Will add all indexes store under `priv/my_app/repo/index/` paths
+
+      $ mix couchx.mango_index.down -r MyApp.Repo -n my-mango-index,my-other-index
+
+      It will call down function on the Migration files
+
+      ```
+        priv/my_app/repo/index/my-mango-index.exs
+        priv/my_app/repo/index/my-other-index.exs
+      ```
+
+      Removing the documents from the database.
+
   """
   import Couchx.CouchId
 
