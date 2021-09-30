@@ -1,0 +1,13 @@
+defmodule <%= @repo_name %>.Index.<%= @index_module %> do
+  use Couchx.MangoIndex, repo_name: <%= @repo_name %>
+
+  def up do
+    create_index "<%= @index_name %>" do
+      %{fields: <%= @fields || [] %>}
+    end
+  end
+
+  def down do
+    drop_index "<%= @index_name %>"
+  end
+end

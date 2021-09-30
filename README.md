@@ -57,6 +57,52 @@ email = "email@email.com"
 Repo.all from u in User, where: u.email == ^email
 ```
 
+## Mango Index
+
+Couchx have a couple of tasks to handle database indexing:
+
+```
+$ mix couchx.gen.mango_index -r MyApp.Repo -n my-mango-index -f name,email
+```
+
+This command will generate a index file on `priv/my_app/repo/index/my-mango-index.exs`
+It rely on repos declared under `config.exs`
+
+```
+import Config
+
+config :my_app, ecto_repos: ["repo", "custom_repo"]
+...
+```
+
+And build a file with contents such as:
+
+```
+defmodule MyApp.Repo.Index.MyMangoIndex do
+  use Couchx.MangoIndex, repo_name: MyApp.Repo
+
+  def up do
+    create_index "my-mango-index" do
+      %{fields: ["name", "email"]}
+    end
+  end
+
+  def down do
+    drop_index("my-mango-index")
+  end
+```
+
+This file will be executed with
+
+```
+$ mix couchx.mango_index
+```
+
+which will persist the index document in the database defined by the repo.
+And if you want to remove the index you can call:
+
+`$ mix couch.mango_index.down -r MyApp.Repo, -n my-mango-index`
+
 ## TODO:
 
 * Repo.insert_all
@@ -66,7 +112,7 @@ Repo.all from u in User, where: u.email == ^email
 * More Mango Queries
 * A better view query pattern
 * Auto indexing requested JS queries
-* Index management
+* JS view index management
 * Add tests
 
 ## Installation

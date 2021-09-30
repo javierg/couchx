@@ -34,6 +34,11 @@ defmodule Couchx.DbConnection do
     GenServer.call(server, {:delete, resource, rev})
   end
 
+  def delete(server, :index, name, id) do
+    id = if id, do: id, else: name
+    GenServer.call(server, {:delete_index, name, id})
+  end
+
   def create_db(server, name) do
     GenServer.call(server, {:create_db, name})
   end
@@ -52,6 +57,19 @@ defmodule Couchx.DbConnection do
 
   def find(server, query, options \\ []) do
     GenServer.call(server, {:find, query, options})
+  end
+
+  def index(server, doc) do
+    GenServer.call(server, {:index, doc})
+  end
+
+  def handle_call({:index, doc}, _from, state) do
+    headers = state[:base_headers]
+    url     = "#{state[:base_url]}/_index"
+    body    = Jason.encode!(doc)
+
+    request(:post, url, body, [headers: headers, options: []])
+    |> call_response(state)
   end
 
   def handle_call({:delete_admin, name}, _from, state) do
@@ -145,6 +163,14 @@ defmodule Couchx.DbConnection do
     body      = Jason.encode!(query)
 
     request(:post, url, body, [headers: headers, options: options])
+    |> call_response(state)
+  end
+
+  def handle_call({:delete_index, name, id}, _from, state) do
+    headers   = state[:base_headers]
+    url       = "#{state[:base_url]}/_index/_design/#{id}/json/#{name}"
+
+    request(:delete, url, [headers: headers, options: []])
     |> call_response(state)
   end
 
