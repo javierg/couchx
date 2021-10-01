@@ -76,7 +76,6 @@ defmodule Mix.Tasks.Couchx.MangoIndex.Down do
   end
 
   def prepend(string, suffix) do
-    position = String.length(string) + String.length(suffix)
-    String.pad_leading(string, position, suffix)
+    suffix <> string
   end
 end
