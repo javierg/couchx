@@ -202,6 +202,13 @@ defmodule Couchx.Adapter do
     |> parse_view_response(opts[:include_docs])
   end
 
+  def execute(:find, meta, selector, fields, opts) do
+    query = %{selector: selector, fields: fields}
+
+    Couchx.DbConnection.find(meta[:pid], query, opts)
+    |> parse_view_response(opts[:include_docs])
+  end
+
   def execute(meta, query_meta, query_cache, params, _opts) do
     {_, {_, keys}}        = query_cache
     %{select: select}     = query_meta
@@ -217,7 +224,7 @@ defmodule Couchx.Adapter do
       _-> all_fields
     end
 
-    do_query(meta[:pid], keys, namespace, params)
+    do_query(meta[:pid], keys, namespace, params, select[:take])
     |> QueryHandler.query_results(fields, fields_meta)
   end
 
@@ -280,11 +287,11 @@ defmodule Couchx.Adapter do
     {fields, module}
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids) when is_list(ids) do
-    do_query(server, [%{_id: ids}], namespace, [])
+  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids, select) when is_list(ids) do
+    do_query(server, [%{_id: ids}], namespace, [], select)
   end
 
-  defp do_query(server, [%{_id: ids}], namespace, []) when is_list(ids) do
+  defp do_query(server, [%{_id: ids}], namespace, [], _select) when is_list(ids) do
     doc_ids = Enum.map(ids, &namespace_id(namespace, &1))
               |> Enum.map(&URI.decode_www_form/1)
 
@@ -292,28 +299,48 @@ defmodule Couchx.Adapter do
     |> sanitize_collection
   end
 
-  defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _]) do
+  defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _], select) do
+    do_query(server, [%{_id: id}], namespace, [], select)
+  end
+
+  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _], select) do
+    do_query(server, [%{_id: id}], namespace, [], select)
+  end
+
+  defp do_query(server, [%{_id: id}], namespace, [], []) do
     Couchx.DbConnection.get(server, namespace_id(namespace, id))
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _]) do
-    Couchx.DbConnection.get(server, namespace_id(namespace, id))
+  defp do_query(server, [%{_id: id}], namespace, [], select) when is_list(select) do
+    namespaced_id = unencoded_namespace_id(namespace, id)
+    query = select_query(%{_id: namespaced_id}, select)
+    Couchx.DbConnection.find(server, query)
   end
 
-  defp do_query(server, [:delete], namespace, []) do
+  defp do_query(server, [:delete], namespace, [], _select) do
     {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", [limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")])
     docs = Enum.map(rows, fn(%{"doc" => doc})-> %{_id: doc["_id"], _rev: doc["_rev"], _deleted: true} end)
     Couchx.DbConnection.bulk_docs(server, docs)
   end
 
-  defp do_query(server, [], namespace, []) do
-    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", [include_docs: true, limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")])
+  defp do_query(server, [], namespace, [], _select) do
+    opts =  [include_docs: true, limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")]
+    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", opts)
     Enum.map(rows, &Map.get(&1, "doc"))
   end
 
-  defp do_query(server, properties, namespace, values) when is_list(properties) do
+  defp do_query(server, properties, namespace, values, select) when is_list(properties) do
     selector = Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
-    Couchx.DbConnection.find(server, %{selector: selector})
+    query = select_query(selector, select)
+    Couchx.DbConnection.find(server, query)
+  end
+
+  defp select_query(selector, []), do: %{selector: selector}
+  defp select_query(selector, fields) when is_list(fields) do
+    %{
+      selector: selector,
+      fields: fields
+    }
   end
 
   defp process_property({key, {:^, [], [value_index]}}, acc, values) do
@@ -370,6 +397,7 @@ defmodule Couchx.Adapter do
     |> Enum.map(&build_structs/1)
   end
   defp parse_view_response({:ok, %{"rows" => rows}}, _), do: rows
+  defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _), do: docs
 
   defp build_structs(map) do
     doc_type = Map.get(map, "_id")
@@ -476,5 +504,11 @@ defmodule Couchx.Adapter do
 
   defp sanitize_collection({:error, error}) do
     {:error, error}
+  end
+
+  defp unencoded_namespace_id(namespace, id) do
+    namespace
+    |> namespace_id(id)
+    |> URI.decode_www_form
   end
 end
