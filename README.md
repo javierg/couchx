@@ -18,6 +18,38 @@ Repo.delete Struct, %{_id: doc_id}
 Repo.update changeset
 ```
 
+To limit a query you can use:
+
+```
+Repo.all from doc in Struct, where: doc.field == ^field, limit: 1
+```
+
+A very basic version of sort is supported depending on the CouchDB version.
+
+On version 1.x
+
+The sort will only work with `desc` or `asc` on the results of `_all_docs` queries,
+which are the ones done by `Repo.all`
+
+```
+Repo.all from doc in Struct, order_by: [desc: doc._id]
+```
+
+On version >= 2.x
+
+The sort will depend on the type of query being done, if it is an `_all_docs` query, the same rules as 1.x apply.
+But for simple field lookups depending on an index, it will follow the rules from Mango, where the `order_by` values will be parsed.
+
+```
+order_by [desc: doc.field]
+```
+
+will be parsed as
+
+```
+{"sort": [{"field": "desc"}]
+```
+
 It adds a simple way to execute JS view queries with:
 
 ```

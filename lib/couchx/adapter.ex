@@ -1,4 +1,5 @@
 defmodule Couchx.Adapter do
+  alias Couchx.PrepareQuery
   alias Couchx.QueryHandler
 
   @moduledoc """
@@ -133,13 +134,6 @@ defmodule Couchx.Adapter do
   @behaviour Ecto.Adapter.Schema
   @behaviour Ecto.Adapter.Queryable
 
-  @query_map [
-    ==: "$eq",
-    or: "$or",
-    and: "$and",
-    in: "$in"
-  ]
-
   defmacro __before_compile__(_env), do: :ok
 
   def init(config) do
@@ -171,9 +165,8 @@ defmodule Couchx.Adapter do
   def insert_all(_, _, _, _, _, _, _, _), do: nil
 
   def prepare(:all, query) do
-    %{wheres: wheres} = query
-    keys = Enum.map(wheres, &parse_where/1)
-    {:nocache, {System.unique_integer([:positive]), keys}}
+    prepared_query = PrepareQuery.call(query)
+    {:nocache, {System.unique_integer([:positive]), prepared_query}}
   end
 
   def prepare(:delete_all, _query) do
@@ -210,10 +203,12 @@ defmodule Couchx.Adapter do
   end
 
   def execute(meta, query_meta, query_cache, params, _opts) do
-    {_, {_, keys}}        = query_cache
-    %{select: select}     = query_meta
-    {all_fields, module}  = fetch_fields(query_meta.sources)
-    namespace             = build_namespace(module)
+    {_, {_, query}}        = query_cache
+    %{select: select}      = query_meta
+    keys                   = query[:keys]
+    query_options          = query[:options]
+    {all_fields, module}   = fetch_fields(query_meta.sources)
+    namespace              = build_namespace(module)
 
     fields_meta = fields_meta(select[:from])
 
@@ -224,7 +219,13 @@ defmodule Couchx.Adapter do
       _-> all_fields
     end
 
-    do_query(meta[:pid], keys, namespace, params, select[:take])
+    query = if select[:take] do
+      %{fields: select[:take]}
+    else
+      %{}
+    end
+
+    do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options))
     |> QueryHandler.query_results(fields, fields_meta)
   end
 
@@ -242,30 +243,6 @@ defmodule Couchx.Adapter do
 
   def delete_db(server, name) do
     Couchx.DbConnection.delete_db(server, name)
-  end
-
-  defp parse_where([]), do: []
-  defp parse_where(%Ecto.Query.BooleanExpr{expr: expr}) do
-    {condition, _, fields} = expr
-    build_query_condition(condition, fields)
-  end
-
-  defp build_query_condition(_, [{{_, [], [{_, [], [_]}, key]}, [], []}, value]) do
-    %{ key => value }
-  end
-
-  defp build_query_condition(condition, fields) do
-    %{ @query_map[condition] => build_query(fields) }
-  end
-
-  defp build_query(fields) do
-    Enum.map(fields, &build_field_condition/1)
-  end
-
-  defp build_field_condition({:^, [], [0]}), do: :primary_key
-  defp build_field_condition({{_, _, [{_, _, [0]}, key]}, _, _}), do: %{key => :empty}
-  defp build_field_condition({expr, _, [{{_, _, [_, key]}, _, _}, value]}) do
-    %{ key => %{ @query_map[expr] => value } }
   end
 
   defp fetch_fields({{resource, nil, _}}) do
@@ -323,24 +300,52 @@ defmodule Couchx.Adapter do
     Couchx.DbConnection.bulk_docs(server, docs)
   end
 
-  defp do_query(server, [], namespace, [], _select) do
-    opts =  [include_docs: true, limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")]
+  defp do_query(server, [], namespace, [], query_options) do
+    limit = query_options[:limit] || 100
+    orders= query_options[:sort]
+
+    opts =  [
+      include_docs: true,
+      limit: limit,
+      include_docs: true,
+      startkey: Jason.encode!(namespace),
+      endkey: Jason.encode!("#{namespace}/{}")
+    ]
+
+    descending = if orders do
+      [default_order | _] = orders
+
+      default_order
+      |> Map.values
+      |> List.flatten
+      |> List.first
+      |> Kernel.==(:desc)
+    end
+
+    opts = if descending do
+      startkey = opts[:startkey]
+      endkey = opts[:endkey]
+
+      Keyword.replace(opts, :startkey, endkey)
+      |> Keyword.replace(:endkey, startkey)
+      |> Kernel.++([descending: true])
+    else
+      opts
+    end
+
     {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", opts)
     Enum.map(rows, &Map.get(&1, "doc"))
   end
 
-  defp do_query(server, properties, namespace, values, select) when is_list(properties) do
+  defp do_query(server, properties, namespace, values, query_options) when is_list(properties) do
     selector = Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
-    query = select_query(selector, select)
+    query = select_query(selector, query_options)
     Couchx.DbConnection.find(server, query)
   end
 
-  defp select_query(selector, []), do: %{selector: selector}
-  defp select_query(selector, fields) when is_list(fields) do
-    %{
-      selector: selector,
-      fields: fields
-    }
+  defp select_query(selector, options) do
+    %{selector: selector}
+    |> Map.merge(options)
   end
 
   defp process_property({key, {:^, [], [value_index]}}, acc, values) do
