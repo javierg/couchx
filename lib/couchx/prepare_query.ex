@@ -10,8 +10,6 @@ defmodule Couchx.PrepareQuery do
     keys    = Enum.map(wheres, &parse_where/1)
     options = parse_options(query)
 
-    IO.inspect options
-
     [keys: keys, options: options]
   end
 
