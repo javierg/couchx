@@ -280,8 +280,8 @@ defmodule Couchx.Adapter do
     do_query(server, [%{_id: id}], namespace, [], select)
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _], select) do
-    do_query(server, [%{_id: id}], namespace, [], select)
+  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _], _select) do
+    do_query(server, [%{_id: id}], namespace, [], [])
   end
 
   defp do_query(server, [%{_id: id}], namespace, [], []) do
