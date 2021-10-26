@@ -162,7 +162,6 @@ defmodule Couchx.Adapter do
 
   def checked_out?(arg), do: arg
 
-  def insert_all(_, _, _, _, _, _, _, _), do: nil
 
   def prepare(:all, query) do
     prepared_query = PrepareQuery.call(query)
@@ -184,6 +183,26 @@ defmodule Couchx.Adapter do
     values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
 
     {:ok, Enum.zip(returning, values)}
+  end
+
+  def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, _opts) do
+    docs = Enum.map(data, &Enum.into(&1, %{}))
+
+    {:ok, res} = Couchx.DbConnection.bulk_docs(meta[:pid], docs)
+    {:ok, Enum.map(res, &parse_bulk_response(&1, data, schema))}
+  end
+
+  def parse_bulk_response(%{"error" => _error, "id" => doc_id}, data, schema) do
+    parse_bulk_response(%{"rev" => nil, "id" => doc_id}, data, schema)
+  end
+
+  def parse_bulk_response(%{"rev" => rev, "id" => doc_id}, data, schema) do
+    fillers = Enum.map(schema, fn(_)-> nil end)
+    doc_template = Enum.zip(schema, fillers)
+    response_data = Enum.find(data, fn([{:_id, id} | _]) -> id == doc_id end) ++ [_rev: rev]
+    doc = Keyword.merge(doc_template, response_data)
+
+    Enum.map(schema, fn(key)-> Keyword.get(doc, key) end)
   end
 
   def execute(:view, meta, design, view, key, query_opts) do
@@ -291,7 +310,12 @@ defmodule Couchx.Adapter do
   defp do_query(server, [%{_id: id}], namespace, [], select) when is_list(select) do
     namespaced_id = unencoded_namespace_id(namespace, id)
     query = select_query(%{_id: namespaced_id}, select)
+
     Couchx.DbConnection.find(server, query)
+  end
+
+  defp do_query(server, [%{_id: id}], namespace, [], _) do
+    Couchx.DbConnection.get(server, namespace_id(namespace, id))
   end
 
   defp do_query(server, [:delete], namespace, [], _select) do

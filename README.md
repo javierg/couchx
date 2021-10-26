@@ -14,6 +14,7 @@ Repo.all from doc in Struct, where: doc.field == ^field
 Repo.one from doc in Struct, where doc.field == ^field
 Repo.one from doc in Struct, where doc.field == ^field, select: ~w[field1 field2]a
 Repo.insert Struct, doc
+Repo.insert_all Struct, docs
 Repo.delete Struct, %{_id: doc_id}
 Repo.update changeset
 ```
