@@ -499,7 +499,7 @@ defmodule Couchx.Adapter do
     {:invalid, errors}
   end
 
-  def do_insert(_errors, repo, constraints fields, returning, meta) do
+  def do_insert(_errors, repo, constraints, fields, returning, meta) do
     data = Enum.into(fields, %{})
            |> build_id(repo)
     url  = URI.encode_www_form(data._id)
@@ -538,8 +538,6 @@ defmodule Couchx.Adapter do
     values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
     {:ok, Enum.zip(returning, values)}
   end
-
-
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
     data = for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
