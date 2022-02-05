@@ -1,6 +1,7 @@
 defmodule Couchx.Adapter do
   alias Couchx.PrepareQuery
   alias Couchx.QueryHandler
+  alias Couchx.Constraint
 
   @moduledoc """
   Adapter to get basic query functionality into `Ecto` with `CouchDB`.
@@ -162,7 +163,6 @@ defmodule Couchx.Adapter do
 
   def checked_out?(arg), do: arg
 
-
   def prepare(:all, query) do
     prepared_query = PrepareQuery.call(query)
     {:nocache, {System.unique_integer([:positive]), prepared_query}}
@@ -173,16 +173,13 @@ defmodule Couchx.Adapter do
   end
 
   def insert(meta, repo, fields, _on_conflict, returning, _options) do
-    data = Enum.into(fields, %{})
-           |> build_id(repo)
-    url  = URI.encode_www_form(data._id)
-    body = Jason.encode!(data)
+    constraints = Constraint.call(meta[:pid], repo, fields)
 
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
-    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
-    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
-
-    {:ok, Enum.zip(returning, values)}
+    constraints
+    |> Enum.filter(fn({state, _})-> state == :invalid end)
+    |> Keyword.values
+    |> List.flatten
+    |> do_insert(repo, constraints, fields, returning, meta)
   end
 
   def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, _opts) do
@@ -496,6 +493,53 @@ defmodule Couchx.Adapter do
 
   def stream(_a, _b, _c, _d, _e) do
   end
+
+  def do_insert(errors, _, _, _, _, _)
+    when length(errors) > 0 do
+    {:invalid, errors}
+  end
+
+  def do_insert(_errors, repo, constraints fields, returning, meta) do
+    data = Enum.into(fields, %{})
+           |> build_id(repo)
+    url  = URI.encode_www_form(data._id)
+    body = Jason.encode!(data)
+
+    Enum.map(constraints, fn({:ok, constraint})->
+      case constraint do
+        %{type: :unique} = constraint ->
+          constraint_doc_id = URI.encode_www_form(constraint.id)
+          constraint_doc = %{_id: constraint.id, type: "constraint"} |> Jason.encode!
+          Couchx.DbConnection.insert(meta[:pid], constraint_doc_id, constraint_doc)
+        true ->
+          {:ok, true}
+      end
+    end)
+    |> Enum.group_by(fn({state, _})-> state end)
+    |> Enum.reduce(%{}, fn({k, v}, acc)-> Map.put(acc, k, Keyword.values(v)) end)
+    |> try_to_persist_insert(data, returning, meta, url, body)
+  end
+
+  defp try_to_persist_insert({:invalid, constraints}, _, _, _, _, _) do
+    {:invalid, constraints[:invalid]}
+  end
+
+  defp try_to_persist_insert(%{invalid: constraints}, _, _, _, _, _) do
+    {:invalid, constraints}
+  end
+
+  defp try_to_persist_insert(%{error: errors}, _data, _returning, _meta, _url, _body) do
+    {:error, errors}
+  end
+
+  defp try_to_persist_insert(%{ok: _}, data, returning, meta, url, body) do
+    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
+    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
+    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
+    {:ok, Enum.zip(returning, values)}
+  end
+
+
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
     data = for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
