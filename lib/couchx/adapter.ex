@@ -2,6 +2,7 @@ defmodule Couchx.Adapter do
   alias Couchx.PrepareQuery
   alias Couchx.QueryHandler
   alias Couchx.Constraint
+  alias Couchx.DocumentState
 
   @moduledoc """
   Adapter to get basic query functionality into `Ecto` with `CouchDB`.
@@ -176,9 +177,7 @@ defmodule Couchx.Adapter do
     constraints = Constraint.call(meta[:pid], repo, fields)
 
     constraints
-    |> Enum.filter(fn({state, _})-> state == :invalid end)
-    |> Keyword.values
-    |> List.flatten
+    |> DocumentState.merge_constraints
     |> do_insert(repo, constraints, fields, returning, meta)
   end
 
@@ -474,17 +473,19 @@ defmodule Couchx.Adapter do
   def insert_all(_a, _b, _c, _d, _e, _f, _g) do
   end
 
-  def update(meta, _repo, fields, identity, returning, _) do
+  def update(meta, repo, fields, identity, returning, _opts) do
     data            = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
     doc_id          = URI.encode_www_form(identity[:_id])
     {:ok, response} = Couchx.DbConnection.get(meta[:pid], doc_id)
-    values          = Map.merge(response, data)
-    body            = Jason.encode!(values)
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], doc_id, body)
-    values          = fetch_insert_values(response, values, returning)
 
-    {:ok, Enum.zip(returning, values)}
+    prev_fields = for {key, val} <- response, do: {String.to_atom(key), val}
+    constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
+
+    constraints
+    |> DocumentState.merge_constraints
+    |> do_update(constraints, doc_id, response, data, returning, meta[:pid])
   end
+
 
   def update!(meta, repo, fields, identity, returning, a) do
     {:ok, values} = update(meta, repo, fields, identity, returning, a)
@@ -505,18 +506,8 @@ defmodule Couchx.Adapter do
     url  = URI.encode_www_form(data._id)
     body = Jason.encode!(data)
 
-    Enum.map(constraints, fn({:ok, constraint})->
-      case constraint do
-        %{type: :unique} = constraint ->
-          constraint_doc_id = URI.encode_www_form(constraint.id)
-          constraint_doc = %{_id: constraint.id, type: "constraint"} |> Jason.encode!
-          Couchx.DbConnection.insert(meta[:pid], constraint_doc_id, constraint_doc)
-        true ->
-          {:ok, true}
-      end
-    end)
-    |> Enum.group_by(fn({state, _})-> state end)
-    |> Enum.reduce(%{}, fn({k, v}, acc)-> Map.put(acc, k, Keyword.values(v)) end)
+    constraints
+    |> DocumentState.process_constraints(meta[:pid])
     |> try_to_persist_insert(data, returning, meta, url, body)
   end
 
@@ -537,6 +528,42 @@ defmodule Couchx.Adapter do
     response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
     values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
     {:ok, Enum.zip(returning, values)}
+  end
+
+  defp do_update(errors, _constraints, _id, _response, _data, _returning, _server)
+    when length(errors) > 0 do
+      {:invalid, errors}
+  end
+
+  defp do_update(_errors, constraints, doc_id, response, data, returning, server) do
+    constraints
+    |> DocumentState.process_constraints(server)
+    |> try_to_persist_update(doc_id, response, returning, data, server)
+  end
+
+  defp try_to_persist_update({:invalid, constraints}, _, _, _, _, _) do
+    {:invalid, constraints[:invalid]}
+  end
+
+  defp try_to_persist_update(%{invalid: constraints}, _, _, _, _, _) do
+    {:invalid, constraints}
+  end
+
+  defp try_to_persist_update(%{error: errors}, _doc_id, _response, _returning, _data, _server) do
+    {:error, errors}
+  end
+
+  defp try_to_persist_update(%{ok: _}, doc_id, response, returning, data, server) do
+    values = Map.merge(response, data)
+    body   = Jason.encode!(values)
+
+    case Couchx.DbConnection.insert(server, doc_id, body) do
+      {:ok, response} ->
+        values = fetch_insert_values(response, values, returning)
+        {:ok, Enum.zip(returning, values)}
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
