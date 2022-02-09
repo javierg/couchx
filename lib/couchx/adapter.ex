@@ -1,6 +1,8 @@
 defmodule Couchx.Adapter do
   alias Couchx.PrepareQuery
   alias Couchx.QueryHandler
+  alias Couchx.Constraint
+  alias Couchx.DocumentState
 
   @moduledoc """
   Adapter to get basic query functionality into `Ecto` with `CouchDB`.
@@ -162,7 +164,6 @@ defmodule Couchx.Adapter do
 
   def checked_out?(arg), do: arg
 
-
   def prepare(:all, query) do
     prepared_query = PrepareQuery.call(query)
     {:nocache, {System.unique_integer([:positive]), prepared_query}}
@@ -173,16 +174,11 @@ defmodule Couchx.Adapter do
   end
 
   def insert(meta, repo, fields, _on_conflict, returning, _options) do
-    data = Enum.into(fields, %{})
-           |> build_id(repo)
-    url  = URI.encode_www_form(data._id)
-    body = Jason.encode!(data)
+    constraints = Constraint.call(meta[:pid], repo, fields)
 
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
-    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
-    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
-
-    {:ok, Enum.zip(returning, values)}
+    constraints
+    |> DocumentState.merge_constraints
+    |> do_insert(repo, constraints, fields, returning, meta)
   end
 
   def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, _opts) do
@@ -477,17 +473,19 @@ defmodule Couchx.Adapter do
   def insert_all(_a, _b, _c, _d, _e, _f, _g) do
   end
 
-  def update(meta, _repo, fields, identity, returning, _) do
+  def update(meta, repo, fields, identity, returning, _opts) do
     data            = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
     doc_id          = URI.encode_www_form(identity[:_id])
     {:ok, response} = Couchx.DbConnection.get(meta[:pid], doc_id)
-    values          = Map.merge(response, data)
-    body            = Jason.encode!(values)
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], doc_id, body)
-    values          = fetch_insert_values(response, values, returning)
 
-    {:ok, Enum.zip(returning, values)}
+    prev_fields = for {key, val} <- response, do: {String.to_atom(key), val}
+    constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
+
+    constraints
+    |> DocumentState.merge_constraints
+    |> do_update(constraints, doc_id, response, data, returning, meta[:pid])
   end
+
 
   def update!(meta, repo, fields, identity, returning, a) do
     {:ok, values} = update(meta, repo, fields, identity, returning, a)
@@ -495,6 +493,77 @@ defmodule Couchx.Adapter do
   end
 
   def stream(_a, _b, _c, _d, _e) do
+  end
+
+  def do_insert(errors, _, _, _, _, _)
+    when length(errors) > 0 do
+    {:invalid, errors}
+  end
+
+  def do_insert(_errors, repo, constraints, fields, returning, meta) do
+    data = Enum.into(fields, %{})
+           |> build_id(repo)
+    url  = URI.encode_www_form(data._id)
+    body = Jason.encode!(data)
+
+    constraints
+    |> DocumentState.process_constraints(meta[:pid])
+    |> try_to_persist_insert(data, returning, meta, url, body)
+  end
+
+  defp try_to_persist_insert({:invalid, constraints}, _, _, _, _, _) do
+    {:invalid, constraints[:invalid]}
+  end
+
+  defp try_to_persist_insert(%{invalid: constraints}, _, _, _, _, _) do
+    {:invalid, constraints}
+  end
+
+  defp try_to_persist_insert(%{error: errors}, _data, _returning, _meta, _url, _body) do
+    {:error, errors}
+  end
+
+  defp try_to_persist_insert(%{ok: _}, data, returning, meta, url, body) do
+    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
+    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
+    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
+    {:ok, Enum.zip(returning, values)}
+  end
+
+  defp do_update(errors, _constraints, _id, _response, _data, _returning, _server)
+    when length(errors) > 0 do
+      {:invalid, errors}
+  end
+
+  defp do_update(_errors, constraints, doc_id, response, data, returning, server) do
+    constraints
+    |> DocumentState.process_constraints(server)
+    |> try_to_persist_update(doc_id, response, returning, data, server)
+  end
+
+  defp try_to_persist_update({:invalid, constraints}, _, _, _, _, _) do
+    {:invalid, constraints[:invalid]}
+  end
+
+  defp try_to_persist_update(%{invalid: constraints}, _, _, _, _, _) do
+    {:invalid, constraints}
+  end
+
+  defp try_to_persist_update(%{error: errors}, _doc_id, _response, _returning, _data, _server) do
+    {:error, errors}
+  end
+
+  defp try_to_persist_update(%{ok: _}, doc_id, response, returning, data, server) do
+    values = Map.merge(response, data)
+    body   = Jason.encode!(values)
+
+    case Couchx.DbConnection.insert(server, doc_id, body) do
+      {:ok, response} ->
+        values = fetch_insert_values(response, values, returning)
+        {:ok, Enum.zip(returning, values)}
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
