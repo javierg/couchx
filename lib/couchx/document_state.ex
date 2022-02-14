@@ -8,6 +8,8 @@ defmodule Couchx.DocumentState do
     |> List.flatten
   end
 
+  def process_constraints([], _server), do: %{ok: true}
+
   def process_constraints(constraints, server) do
     Enum.map(constraints, fn({:ok, constraint})->
       case constraint do
