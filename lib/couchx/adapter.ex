@@ -402,6 +402,10 @@ defmodule Couchx.Adapter do
     end
   end
 
+  defp typed_document(data, %{schema: resource}) do
+    Map.put(data, :type, build_namespace(resource))
+  end
+
   defp build_id(data, %{schema: resource}) do
     resource
       |> to_string
@@ -503,6 +507,8 @@ defmodule Couchx.Adapter do
   def do_insert(_errors, repo, constraints, fields, returning, meta) do
     data = Enum.into(fields, %{})
            |> build_id(repo)
+           |> typed_document(repo)
+
     url  = URI.encode_www_form(data._id)
     body = Jason.encode!(data)
 
