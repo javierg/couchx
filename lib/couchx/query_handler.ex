@@ -48,16 +48,14 @@ defmodule Couchx.QueryHandler do
   end
 
   defp process_docs(doc, fields, nil) do
-    fields
-    |> Enum.reduce([], fn({key, value}, acc) ->
+    Enum.reduce(fields, [], fn({key, value}, acc) ->
       confirmed_value = if doc[key], do: value, else: nil
       acc ++ confirmed_value
     end)
   end
 
   defp process_docs(doc, _fields, meta) do
-    meta
-    |> Enum.reduce([], fn({key, type}, acc) ->
+    Enum.reduce(meta, [], fn({key, type}, acc) ->
       value = Map.get(doc, to_string(key))
       acc ++ [Ecto.Type.cast(type, value) |> elem(1)]
     end)
