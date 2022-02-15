@@ -7,19 +7,25 @@ defmodule Couchx.Constraint do
       fields,
       prev_fields
     ) do
-    params = Enum.into(fields, %{})
-    changeset = schema.changeset(schema.__struct__, params)
+      if with_schema?(schema) do
+        params = Enum.into(fields, %{})
+        changeset = schema.changeset(schema.__struct__, params)
+        fields = Keyword.merge(prev_fields, fields)
 
-    fields = Keyword.merge(prev_fields, fields)
-
-    changeset
-    |> Map.get(:constraints)
-    |> Enum.map(&process_constraints(&1, source, fields, server, prev_fields))
+        changeset
+        |> Map.get(:constraints)
+        |> Enum.map(&process_constraints(&1, source, fields, server, prev_fields))
+      else
+        [{:ok, true}]
+      end
   end
-
 
   def call(_server, _repo, _fields, _prev_fields) do
     {:error, "unknow error"}
+  end
+
+  defp with_schema?(module) do
+    function_exported?(module, :changeset, 2)
   end
 
   defp process_constraints(
