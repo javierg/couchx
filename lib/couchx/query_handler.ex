@@ -49,33 +49,17 @@ defmodule Couchx.QueryHandler do
 
   defp process_docs(doc, fields, nil) do
     fields
-    |> Enum.reduce([], fn({key, value}, acc)->
-         confirmed_value = if doc[key], do: value, else: nil
-         acc ++ confirmed_value
-       end)
+    |> Enum.reduce([], fn({key, value}, acc) ->
+      confirmed_value = if doc[key], do: value, else: nil
+      acc ++ confirmed_value
+    end)
   end
 
-  defp process_docs(doc, fields, meta) do
-    template = doc_template(meta)
-    doc = Map.take(doc, fields)
-
-    template
-    |> Map.merge(doc)
-    |> Map.values
+  defp process_docs(doc, _fields, meta) do
+    meta
+    |> Enum.reduce([], fn({key, type}, acc) ->
+      value = Map.get(doc, to_string(key))
+      acc ++ [Ecto.Type.cast(type, value) |> elem(1)]
+    end)
   end
-
-  defp doc_template(fields) do
-    fields
-    |> Enum.reduce(%{}, fn({key, type}, acc)->
-         Map.put(acc, "#{key}", default_value(type))
-       end)
-  end
-
-  defp default_value(:string), do: ""
-  defp default_value(:integer), do: 0
-  defp default_value(:boolean), do: false
-  defp default_value({:array, _}), do: []
-  defp default_value(:map), do: %{}
-  defp default_value({:map, _}), do: %{}
-  defp default_value(:binary_id), do: ""
 end
