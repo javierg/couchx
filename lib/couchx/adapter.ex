@@ -202,19 +202,21 @@ defmodule Couchx.Adapter do
   end
 
   def execute(:view, meta, design, view, key, query_opts) do
-    opts = query_opts
-           |> Enum.into(%{})
-           |> Map.merge(%{key: key})
+    query_opts = query_opts ++ [key: Jason.encode!(key)]
+    execute(:view, meta, design, view, query_opts)
+  end
 
+  def execute(:view, meta, design, view, query_opts) do
+    opts = prepare_view_options(query_opts)
     Couchx.DbConnection.get(meta[:pid], "_design/#{design}/_view/#{view}", opts)
-    |> parse_view_response(opts[:include_docs])
+    |> parse_view_response(opts[:include_docs], query_opts[:module])
   end
 
   def execute(:find, meta, selector, fields, opts) do
     query = %{selector: selector, fields: fields}
 
     Couchx.DbConnection.find(meta[:pid], query, opts)
-    |> parse_view_response(opts[:include_docs])
+    |> parse_view_response(opts[:include_docs], opts[:module])
   end
 
   def execute(meta, query_meta, query_cache, params, _opts) do
@@ -420,24 +422,31 @@ defmodule Couchx.Adapter do
     Map.put(data, :_id, id)
   end
 
-  defp parse_view_response({:ok, %{"rows" => rows}}, true) do
+
+  defp parse_view_response({:ok, %{"rows" => rows}}, true, module_name) do
     rows
     |> Enum.map(&Map.get(&1, "doc"))
-    |> Enum.map(&build_structs/1)
+    |> Enum.map(&build_structs(&1, module_name))
   end
-  defp parse_view_response({:ok, %{"rows" => rows}}, _), do: rows
-  defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _), do: docs
 
-  defp build_structs(map) do
+  defp parse_view_response({:ok, %{"rows" => rows}}, _, _), do: rows
+  defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _, _), do: docs
+
+  defp build_structs(map, module_name) do
+    doc = Enum.reduce(map, %{}, &keys_to_atoms/2)
+    module_name = fetch_module_name(map, module_name)
+    struct(module_name, doc)
+  end
+
+  defp fetch_module_name(map, nil) do
     doc_type = Map.get(map, "_id")
                |> String.replace(~r{(/.+)}, "")
                |> Macro.camelize
 
-    module = :"Elixir.SDB.#{doc_type}" # TODO: pass module name in view execute
-
-    doc = Enum.reduce(map, %{}, &keys_to_atoms/2)
-    struct(module, doc)
+    :"Elixir.SDB.#{doc_type}"
   end
+
+  defp fetch_module_name(_map, name), do: name
 
   defp keys_to_atoms({key, value}, acc) do
     Map.put(acc, String.to_atom(key), value)
@@ -614,5 +623,11 @@ defmodule Couchx.Adapter do
     namespace
     |> namespace_id(id)
     |> URI.decode_www_form
+  end
+
+  defp prepare_view_options(options) do
+    options
+    |> Keyword.replace(:keys, Jason.encode!(options[:keys]))
+    |> Enum.into(%{})
   end
 end
