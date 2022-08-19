@@ -136,6 +136,8 @@ defmodule Couchx.Adapter do
   @behaviour Ecto.Adapter.Schema
   @behaviour Ecto.Adapter.Queryable
 
+  @encodable_keys ~w[key keys startkey endkey start_key end_key]a
+
   defmacro __before_compile__(_env), do: :ok
 
   def init(config) do
@@ -216,6 +218,11 @@ defmodule Couchx.Adapter do
     query = %{selector: selector, fields: fields}
 
     Couchx.DbConnection.find(meta[:pid], query, opts)
+    |> parse_view_response(opts[:include_docs], opts[:module])
+  end
+
+  def execute(:request, meta, method, path, opts) do
+    Couchx.DbConnection.raw_request(meta[:pid], method, path, opts)
     |> parse_view_response(opts[:include_docs], opts[:module])
   end
 
@@ -422,7 +429,6 @@ defmodule Couchx.Adapter do
     Map.put(data, :_id, id)
   end
 
-
   defp parse_view_response({:ok, %{"rows" => rows}}, true, module_name) do
     rows
     |> Enum.map(&Map.get(&1, "doc"))
@@ -431,6 +437,9 @@ defmodule Couchx.Adapter do
 
   defp parse_view_response({:ok, %{"rows" => rows}}, _, _), do: rows
   defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _, _), do: docs
+  defp parse_view_response({:ok, raw_response}, _, _), do: raw_response
+
+  defp parse_view_response({:error, _} = error, _, _), do: error
 
   defp build_structs(map, module_name) do
     doc = Enum.reduce(map, %{}, &keys_to_atoms/2)
@@ -626,8 +635,10 @@ defmodule Couchx.Adapter do
   end
 
   defp prepare_view_options(options) do
-    options
-    |> Keyword.replace(:keys, Jason.encode!(options[:keys]))
+    @encodable_keys
+    |> Enum.reduce(options, fn key, acc ->
+       Keyword.replace(acc, key, Jason.encode!(options[key]))
+    end)
     |> Enum.into(%{})
   end
 end

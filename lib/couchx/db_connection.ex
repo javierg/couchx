@@ -63,6 +63,10 @@ defmodule Couchx.DbConnection do
     GenServer.call(server, {:index, doc})
   end
 
+  def raw_request(server, method, path, options \\ []) do
+    GenServer.call(server, {:raw_request, method, path, options})
+  end
+
   def handle_call({:index, doc}, _from, state) do
     headers = state[:base_headers]
     url     = "#{state[:base_url]}/_index"
@@ -154,6 +158,23 @@ defmodule Couchx.DbConnection do
 
     request(:get, url, [headers: headers, options: options])
     |> call_response(state)
+  end
+
+  def handle_call({:raw_request, method, path, options}, _from, state) do
+    query_str = build_query_str(options[:query_str])
+    url = "#{state[:base_url]}/#{path}#{query_str}"
+
+    case method do
+      :get ->
+        request(method, url, [headers: state[:base_headers], options: state[:options]])
+      :delete ->
+        request(:delete, url, [headers: state[:base_headers], options: []])
+      _ ->
+        body = Jason.encode!(options[:body])
+        request(method, url, body, [headers: state[:base_headers], options: state[:options]])
+    end
+    |> call_response(state)
+
   end
 
   def handle_call({:find, query, options}, _from, state) do
