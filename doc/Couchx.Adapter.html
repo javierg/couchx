@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.25.2">
+    <meta name="project" content="Couchx v0.3.0">
+
+    <title>Couchx.Adapter — Couchx v0.3.0</title>
+    <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
+
+    <script src="dist/sidebar_items-5461d0ecee.js"></script>
+
+      <script src="docs_config.js"></script>
+
+    <script async src="dist/app-f97730d45ef67f3e6188.js"></script>
+
+
+  </head>
+  <body data-type="modules">
+    <script>
+
+      try {
+        if (localStorage.getItem('night-mode') === 'true') {
+          document.body.classList.add('night-mode');
+        }
+      } catch (error) { }
+    </script>
+
+<div class="main">
+
+<button class="sidebar-button sidebar-toggle">
+  <span class="icon-menu" title="Collapse/expand sidebar"></span>
+</button>
+
+<section class="sidebar">
+  <form class="sidebar-search" action="search.html">
+    <button type="submit" class="search-button" aria-label="Submit Search">
+      <span class="icon-search" aria-hidden="true" title="Submit search"></span>
+    </button>
+    <button type="button" tabindex="-1" class="search-close-button" aria-label="Cancel Search">
+      <span class="icon-cross" aria-hidden="true" title="Cancel search"></span>
+    </button>
+    <label class="search-label">
+      <input name="q" type="text" class="search-input" placeholder="Search..." aria-label="Input your search terms" autocomplete="off" />
+    </label>
+  </form>
+
+  <div class="autocomplete">
+    <div class="autocomplete-results">
+    </div>
+  </div>
+
+  <div class="sidebar-header">
+    <div class="sidebar-projectDetails">
+      <a href="api-reference.html" class="sidebar-projectName">
+Couchx
+      </a>
+      <strong class="sidebar-projectVersion">
+        v0.3.0
+      </strong>
+    </div>
+
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list-link" href="#full-list">Pages</a></li>
+
+      <li><a id="modules-list-link" href="#full-list">Modules</a></li>
+
+
+      <li><a id="tasks-list-link" href="#full-list">Mix Tasks</a></li>
+
+  </ul>
+  <div class="gradient"></div>
+  <ul id="full-list" class="sidebar-fullList"></ul>
+</section>
+
+<section class="content">
+  <div class="content-outer">
+    <div id="content" class="content-inner">
+
+      <h1>
+Couchx.Adapter <small class="app-vsn">(Couchx v0.3.0)</small>
+
+      </h1>
+
+
+        <section id="moduledoc">
+<p>Adapter to get basic query functionality into <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.html"><code class="inline">Ecto</code></a> with <code class="inline">CouchDB</code>.</p><h2 id="module-configuration" class="section-heading">
+  <a href="#module-configuration" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Configuration
+</h2>
+<p>It uses the same as Ecto pattern to config the Dbs with this format:</p><pre><code class="makeup elixir"><span class="n">config</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="nc">MyRepo</span><span class="p">,</span><span class="w">
+  </span><span class="ss">username</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">password</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;password&quot;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">database</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;db_name&quot;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">hostname</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;localhost&quot;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">protocol</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;http&quot;</span><span class="p">,</span><span class="w">
+  </span><span class="ss">port</span><span class="p">:</span><span class="w"> </span><span class="mi">5984</span></code></pre><h2 id="module-usage" class="section-heading">
+  <a href="#module-usage" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Usage
+</h2>
+<p>Couchx supports 1 main repo and many dynamic supervised repos.
+A dynamic repo will allow you to have multiple db connections in your application.
+To achieve this, you will need to setup a <a href="https://hexdocs.pm/elixir/DynamicSupervisor.html"><code class="inline">DynamicSupervisor</code></a> and a <a href="https://hexdocs.pm/elixir/Registry.html"><code class="inline">Registry</code></a> in the application like:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="6793788643-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="6793788643-1">)</span><span class="w"> </span><span class="k" data-group-id="6793788643-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="6793788643-3">[</span><span class="w">
+      </span><span class="p" data-group-id="6793788643-4">{</span><span class="nc">DynamicSupervisor</span><span class="p">,</span><span class="w"> </span><span class="ss">strategy</span><span class="p">:</span><span class="w"> </span><span class="ss">:one_for_one</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxSupervisor</span><span class="p" data-group-id="6793788643-4">}</span><span class="w">
+      </span><span class="p" data-group-id="6793788643-5">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxRegistry</span><span class="p" data-group-id="6793788643-5">}</span><span class="p">,</span><span class="w">
+      </span><span class="n">...</span><span class="w">
+    </span><span class="p" data-group-id="6793788643-3">]</span><span class="w">
+    </span><span class="n">...</span><span class="w">
+  </span><span class="k" data-group-id="6793788643-2">end</span></code></pre><p>The Restry name is tied up to the code so it must be called <code class="inline">CouchxRegistry</code>.</p><p>The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="6976111031-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="6976111031-1">)</span><span class="w"> </span><span class="k" data-group-id="6976111031-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="6976111031-3">[</span><span class="w">
+      </span><span class="nc">MyDb.Repo</span><span class="w">
+    </span><span class="p" data-group-id="6976111031-3">]</span><span class="w">
+    </span><span class="n">...</span><span class="w">
+  </span><span class="k" data-group-id="6976111031-2">end</span></code></pre><h3 id="module-dynamic-repo-queries" class="section-heading">
+  <a href="#module-dynamic-repo-queries" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Dynamic Repo queries
+</h3>
+<p>The dynamic repos are implemente with a Macro that you can get into your repo as:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kn">use</span><span class="w"> </span><span class="nc">CouchxDyncamicTepo</span><span class="p">,</span><span class="w"> </span><span class="ss">otp_app</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_repo</span></code></pre><p>This is used to setup a <code class="inline">run</code> function, with a callback as argument.
+To execute actions in a dynamic repo we follow this pattern:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="4871462567-1">(</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="4871462567-2">(</span><span class="nc">MyStruct</span><span class="p">,</span><span class="w"> </span><span class="n">doc_id</span><span class="p" data-group-id="4871462567-2">)</span><span class="w">
+  </span><span class="k">end</span><span class="p" data-group-id="4871462567-1">)</span></code></pre><p>Any Repo call inside the callback function will be run in a dynamically supervised connection.</p><h2 id="module-migrations" class="section-heading">
+  <a href="#module-migrations" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Migrations
+</h2>
+<p>Couchx comes with a Mango index generator.</p><h3 id="module-example" class="section-heading">
+  <a href="#module-example" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Example
+</h3>
+<pre><code class="makeup shell"><span class="gp unselectable">$ </span><span class="">mix couchx.gen.mango_index -r MyApp.Repo -n my-mango-index -f username,email
+</span></code></pre><p>This will create a file under <code class="inline">priv/my_app/repo/index/my-mango-index.exs</code> with contents as:</p><pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyMangoIndex</span><span class="w"> </span><span class="k" data-group-id="4685427559-1">do</span><span class="w">
+  </span><span class="kn">use</span><span class="w"> </span><span class="nc">Couchx.MangoIndex</span><span class="p">,</span><span class="w"> </span><span class="ss">repo_name</span><span class="p">:</span><span class="w"> </span><span class="nc">MyApp.Repo</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="4685427559-2">do</span><span class="w">
+    </span><span class="n">create_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w"> </span><span class="k" data-group-id="4685427559-3">do</span><span class="w">
+      </span><span class="p" data-group-id="4685427559-4">%{</span><span class="w">
+         </span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4685427559-5">[</span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="4685427559-5">]</span><span class="p">,</span><span class="w">
+       </span><span class="p" data-group-id="4685427559-4">}</span><span class="w">
+    </span><span class="k" data-group-id="4685427559-3">end</span><span class="w">
+  </span><span class="k" data-group-id="4685427559-2">end</span><span class="w">
+
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="4685427559-6">do</span><span class="w">
+    </span><span class="n">drop_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w">
+  </span><span class="k" data-group-id="4685427559-6">end</span><span class="w">
+</span><span class="k" data-group-id="4685427559-1">end</span><span class="w">
+</span></code></pre><p>The Map inside the <code class="inline">create_index</code> block will be added to the <code class="inline">index</code> json object, so any structure that can go there can be added here.
+Currently only supported methods are</p><h3 id="module-create_index-string-t-map-t" class="section-heading">
+  <a href="#module-create_index-string-t-map-t" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  create_index(String.t(), (-&gt; Map.t()))
+</h3>
+<ul><li>name: ID and Name for the index to be created in CouchDB, this will be used as <code class="inline">id</code> for the document persisted.</li><li>fun: A block that returns a formated Map for the index to be created, it will be parsed as JSON to the body of the index document.</li></ul><h3 id="module-drop_index-string-t" class="section-heading">
+  <a href="#module-drop_index-string-t" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  drop_index(String.t())
+</h3>
+<ul><li>name: Id and Name for the index document to be deleted</li></ul><h3 id="module-examples" class="section-heading">
+  <a href="#module-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
+  Examples
+</h3>
+<pre><code class="makeup shell"><span class="gp unselectable">$ </span><span class="">mix couchx.mango_index
+</span><span class="">
+</span><span class="">Will add all indexes store under `priv/my_app/repo/index/` paths
+</span><span class="">
+</span><span class="gp unselectable">$ </span><span class="">mix couchx.mango_index.down -r MyApp.Repo -n my-mango-index,my-other-index
+</span><span class="">
+</span><span class="">It will call down function on the Migration files
+</span><span class="">
+</span><span class="">```
+</span><span class="">  priv/my_app/repo/index/my-mango-index.exs
+</span><span class="">  priv/my_app/repo/index/my-other-index.exs
+</span><span class="">```
+</span><span class="">
+</span><span class="">Removing the documents from the database.
+</span></code></pre>
+        </section>
+
+
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+            Summary
+          </h1>
+
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#autogenerate/1">autogenerate(atom)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#checked_out?/1">checked_out?(arg)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#checkout/3">checkout(adapter, config, result)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#create_admin/3">create_admin(server, name, password)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#create_db/2">create_db(server, name)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#delete/4">delete(meta, meta_schema, params, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#delete_admin/2">delete_admin(server, name)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#delete_db/2">delete_db(server, name)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#do_insert/6">do_insert(errors, repo, constraints, fields, returning, meta)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#dumpers/2">dumpers(arg1, type)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#ensure_all_started/2">ensure_all_started(repo, type)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#execute/5">execute(meta, meta, design, view, query_opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#execute/6">execute(atom, meta, design, view, key, query_opts)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#init/1">init(config)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#insert/6">insert(meta, repo, fields, on_conflict, returning, options)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#insert_all/7">insert_all(a, b, c, d, e, f, g)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#insert_all/8">insert_all(meta, repo, fields, data, on_conflict, schema, returning, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#loaders/2">loaders(arg1, type)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#parse_bulk_response/3">parse_bulk_response(map, data, schema)</a>
+
+  </div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#prepare/2">prepare(atom, query)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#stream/5">stream(a, b, c, d, e)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update/6">update(meta, repo, fields, identity, returning, opts)</a>
+
+  </div>
+
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p></div>
+
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update!/6">update!(meta, repo, fields, identity, returning, a)</a>
+
+  </div>
+
+</div>
+
+  </div>
+
+        </section>
+
+
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <span class="icon-link" aria-hidden="true"></span>
+              <span class="sr-only">Link to this section</span>
+            </a>
+Functions
+          </h1>
+          <div class="functions-list">
+<section class="detail" id="autogenerate/1">
+
+  <div class="detail-header">
+    <a href="#autogenerate/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">autogenerate(atom)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="checked_out?/1">
+
+  <div class="detail-header">
+    <a href="#checked_out?/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">checked_out?(arg)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="checkout/3">
+
+  <div class="detail-header">
+    <a href="#checkout/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">checkout(adapter, config, result)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="create_admin/3">
+
+  <div class="detail-header">
+    <a href="#create_admin/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">create_admin(server, name, password)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="create_db/2">
+
+  <div class="detail-header">
+    <a href="#create_db/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">create_db(server, name)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="delete/4">
+
+  <div class="detail-header">
+    <a href="#delete/4" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">delete(meta, meta_schema, params, opts)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="delete_admin/2">
+
+  <div class="detail-header">
+    <a href="#delete_admin/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">delete_admin(server, name)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="delete_db/2">
+
+  <div class="detail-header">
+    <a href="#delete_db/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">delete_db(server, name)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="do_insert/6">
+
+  <div class="detail-header">
+    <a href="#do_insert/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">do_insert(errors, repo, constraints, fields, returning, meta)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="dumpers/2">
+
+  <div class="detail-header">
+    <a href="#dumpers/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">dumpers(arg1, type)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="ensure_all_started/2">
+
+  <div class="detail-header">
+    <a href="#ensure_all_started/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">ensure_all_started(repo, type)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="execute/5">
+
+  <div class="detail-header">
+    <a href="#execute/5" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">execute(meta, meta, design, view, query_opts)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="execute/6">
+
+  <div class="detail-header">
+    <a href="#execute/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">execute(atom, meta, design, view, key, query_opts)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="init/1">
+
+  <div class="detail-header">
+    <a href="#init/1" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">init(config)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="insert/6">
+
+  <div class="detail-header">
+    <a href="#insert/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">insert(meta, repo, fields, on_conflict, returning, options)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="insert_all/7">
+
+  <div class="detail-header">
+    <a href="#insert_all/7" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">insert_all(a, b, c, d, e, f, g)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="insert_all/8">
+
+  <div class="detail-header">
+    <a href="#insert_all/8" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">insert_all(meta, repo, fields, data, on_conflict, schema, returning, opts)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="loaders/2">
+
+  <div class="detail-header">
+    <a href="#loaders/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">loaders(arg1, type)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="parse_bulk_response/3">
+
+  <div class="detail-header">
+    <a href="#parse_bulk_response/3" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">parse_bulk_response(map, data, schema)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+<section class="detail" id="prepare/2">
+
+  <div class="detail-header">
+    <a href="#prepare/2" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">prepare(atom, query)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="stream/5">
+
+  <div class="detail-header">
+    <a href="#stream/5" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">stream(a, b, c, d, e)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="update/6">
+
+  <div class="detail-header">
+    <a href="#update/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">update(meta, repo, fields, identity, returning, opts)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p>
+  </section>
+</section>
+<section class="detail" id="update!/6">
+
+  <div class="detail-header">
+    <a href="#update!/6" class="detail-link" title="Link to this function">
+      <span class="icon-link" aria-hidden="true"></span>
+      <span class="sr-only">Link to this function</span>
+    </a>
+    <h1 class="signature">update!(meta, repo, fields, identity, returning, a)</h1>
+
+
+  </div>
+
+  <section class="docstring">
+
+
+  </section>
+</section>
+
+          </div>
+        </section>
+
+      <footer class="footer">
+
+        <p>
+          Find it on Hex:
+          <a href="https://hex.pm/packages/couchx/0.3.0" class="line footer-hex-package">Package</a>
+          <a href="https://preview.hex.pm/preview/couchx/0.3.0" class="line">Preview</a>
+
+            <a href="https://preview.hex.pm/preview/couchx/0.3.0/show/lib/couchx/adapter.ex">(current file)</a>
+
+        </p>
+
+        <p>
+          <span class="line">
+            Built using
+            <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" target="_blank" rel="help noopener">ExDoc</a> (v0.25.2) for the
+            <a href="https://elixir-lang.org" title="Elixir" target="_blank">Elixir programming language</a>.
+          </span>
+          <span class="line">
+            Designed by
+            <a href="https://twitter.com/dignifiedquire" target="_blank" rel="noopener" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+        </p>
+        <p>
+
+            <a href="api-reference.html" title="API reference" class="line footer-button">API Reference</a>
+
+          <button class="line footer-button display-shortcuts-help">
+            Display keyboard shortcuts
+          </button>
+          <button class="line footer-button night-mode-toggle">
+            Toggle night mode
+          </button>
+          <button class="line footer-button display-quick-switch">
+            Go to a HexDocs package
+          </button>
+          <button class="line footer-button tooltips-toggle">
+            <span class="tooltips-option-disable">Disable tooltips</span>
+            <span class="tooltips-option-enable">Enable tooltips</span>
+          </button>
+        </p>
+      </footer>
+    </div>
+  </div>
+</section>
+</div>
+
+
+  </body>
+</html>
