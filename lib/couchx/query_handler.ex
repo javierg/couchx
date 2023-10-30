@@ -8,6 +8,11 @@ defmodule Couchx.QueryHandler do
   def query_results([], _, _), do: {0, []}
   def query_results({:error, reason}, _, _), do: raise Couchx.DbError, message: "#{reason}"
 
+  def query_results([%{"_id" => _}|_] = docs, fields, metadata) do
+    Enum.map(docs, &process_docs(&1, fields, metadata))
+    |> execute_response
+  end
+
   def query_results({:ok, response}, _, _) when response in @empty_response do
     {0, []}
   end
