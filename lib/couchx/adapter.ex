@@ -25,12 +25,11 @@ defmodule Couchx.Adapter do
 
   Couchx supports 1 main repo and many dynamic supervised repos.
   A dynamic repo will allow you to have multiple db connections in your application.
-  To achieve this, you will need to setup a `DynamicSupervisor` and a `Registry` in the application like:
+  To achieve this, you will need to setup a `Registry` in the application like:
 
   ```
     def start(_type, _args) do
       children = [
-        {DynamicSupervisor, strategy: :one_for_one, name: CouchxSupervisor}
         {Registry, keys: :unique, name: CouchxRegistry},
         ...
       ]
@@ -464,20 +463,20 @@ defmodule Couchx.Adapter do
   defp put_conn_id(config), do: config ++ [id: config[:name]]
 
   defp couchdb_supervisor_spec(config) do
-    {
-      config[:id],
-      {
-        DynamicSupervisor,
-        :start_child,
+    sup_id = config[:id] || CouchxAdapter
+
+    %{
+      id: sup_id,
+      start: {
+        Couchx.DbConnection,
+        :start_link,
         [
-          CouchxSupervisor,
-          {Couchx.DbConnection, config}
+          config,
         ]
       },
-      :permanent,
-      :infinity,
-      :worker,
-      [config[:id]]
+      restart: :permanent,
+      shutdown: :infinity,
+      type: :supervisor
     }
   end
 

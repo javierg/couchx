@@ -12,6 +12,10 @@ defmodule Couchx.DbConnection do
     {:ok, args}
   end
 
+  def terminate(reason, _state) do
+    IO.inspect reason
+  end
+
   def info(server), do: GenServer.call(server, :info)
 
   def insert(server, resource, body, options \\ []) do

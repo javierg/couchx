@@ -5,9 +5,9 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.25.2">
-    <meta name="project" content="Couchx v0.3.0">
+    <meta name="project" content="Couchx v0.4.0">
 
-    <title>Couchx.Adapter — Couchx v0.3.0</title>
+    <title>Couchx.Adapter — Couchx v0.4.0</title>
     <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
 
     <script src="dist/sidebar_items-5461d0ecee.js"></script>
@@ -58,7 +58,7 @@
 Couchx
       </a>
       <strong class="sidebar-projectVersion">
-        v0.3.0
+        v0.4.0
       </strong>
     </div>
 
@@ -82,13 +82,13 @@ Couchx
     <div id="content" class="content-inner">
 
       <h1>
-Couchx.Adapter <small class="app-vsn">(Couchx v0.3.0)</small>
+Couchx.Adapter <small class="app-vsn">(Couchx v0.4.0)</small>
 
       </h1>
 
 
         <section id="moduledoc">
-<p>Adapter to get basic query functionality into <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.html"><code class="inline">Ecto</code></a> with <code class="inline">CouchDB</code>.</p><h2 id="module-configuration" class="section-heading">
+<p>Adapter to get basic query functionality into <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.html"><code class="inline">Ecto</code></a> with <code class="inline">CouchDB</code>.</p><h2 id="module-configuration" class="section-heading">
   <a href="#module-configuration" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Configuration
 </h2>
@@ -104,26 +104,25 @@ Couchx.Adapter <small class="app-vsn">(Couchx v0.3.0)</small>
 </h2>
 <p>Couchx supports 1 main repo and many dynamic supervised repos.
 A dynamic repo will allow you to have multiple db connections in your application.
-To achieve this, you will need to setup a <a href="https://hexdocs.pm/elixir/DynamicSupervisor.html"><code class="inline">DynamicSupervisor</code></a> and a <a href="https://hexdocs.pm/elixir/Registry.html"><code class="inline">Registry</code></a> in the application like:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="6793788643-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="6793788643-1">)</span><span class="w"> </span><span class="k" data-group-id="6793788643-2">do</span><span class="w">
-    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="6793788643-3">[</span><span class="w">
-      </span><span class="p" data-group-id="6793788643-4">{</span><span class="nc">DynamicSupervisor</span><span class="p">,</span><span class="w"> </span><span class="ss">strategy</span><span class="p">:</span><span class="w"> </span><span class="ss">:one_for_one</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxSupervisor</span><span class="p" data-group-id="6793788643-4">}</span><span class="w">
-      </span><span class="p" data-group-id="6793788643-5">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxRegistry</span><span class="p" data-group-id="6793788643-5">}</span><span class="p">,</span><span class="w">
+To achieve this, you will need to setup a <a href="https://hexdocs.pm/elixir/Registry.html"><code class="inline">Registry</code></a> in the application like:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="6833770365-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="6833770365-1">)</span><span class="w"> </span><span class="k" data-group-id="6833770365-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="6833770365-3">[</span><span class="w">
+      </span><span class="p" data-group-id="6833770365-4">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxRegistry</span><span class="p" data-group-id="6833770365-4">}</span><span class="p">,</span><span class="w">
       </span><span class="n">...</span><span class="w">
-    </span><span class="p" data-group-id="6793788643-3">]</span><span class="w">
+    </span><span class="p" data-group-id="6833770365-3">]</span><span class="w">
     </span><span class="n">...</span><span class="w">
-  </span><span class="k" data-group-id="6793788643-2">end</span></code></pre><p>The Restry name is tied up to the code so it must be called <code class="inline">CouchxRegistry</code>.</p><p>The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="6976111031-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="6976111031-1">)</span><span class="w"> </span><span class="k" data-group-id="6976111031-2">do</span><span class="w">
-    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="6976111031-3">[</span><span class="w">
+  </span><span class="k" data-group-id="6833770365-2">end</span></code></pre><p>The Restry name is tied up to the code so it must be called <code class="inline">CouchxRegistry</code>.</p><p>The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="8185497229-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="8185497229-1">)</span><span class="w"> </span><span class="k" data-group-id="8185497229-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="8185497229-3">[</span><span class="w">
       </span><span class="nc">MyDb.Repo</span><span class="w">
-    </span><span class="p" data-group-id="6976111031-3">]</span><span class="w">
+    </span><span class="p" data-group-id="8185497229-3">]</span><span class="w">
     </span><span class="n">...</span><span class="w">
-  </span><span class="k" data-group-id="6976111031-2">end</span></code></pre><h3 id="module-dynamic-repo-queries" class="section-heading">
+  </span><span class="k" data-group-id="8185497229-2">end</span></code></pre><h3 id="module-dynamic-repo-queries" class="section-heading">
   <a href="#module-dynamic-repo-queries" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Dynamic Repo queries
 </h3>
 <p>The dynamic repos are implemente with a Macro that you can get into your repo as:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kn">use</span><span class="w"> </span><span class="nc">CouchxDyncamicTepo</span><span class="p">,</span><span class="w"> </span><span class="ss">otp_app</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_repo</span></code></pre><p>This is used to setup a <code class="inline">run</code> function, with a callback as argument.
-To execute actions in a dynamic repo we follow this pattern:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="4871462567-1">(</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-    </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="4871462567-2">(</span><span class="nc">MyStruct</span><span class="p">,</span><span class="w"> </span><span class="n">doc_id</span><span class="p" data-group-id="4871462567-2">)</span><span class="w">
-  </span><span class="k">end</span><span class="p" data-group-id="4871462567-1">)</span></code></pre><p>Any Repo call inside the callback function will be run in a dynamically supervised connection.</p><h2 id="module-migrations" class="section-heading">
+To execute actions in a dynamic repo we follow this pattern:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="6628645064-1">(</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="6628645064-2">(</span><span class="nc">MyStruct</span><span class="p">,</span><span class="w"> </span><span class="n">doc_id</span><span class="p" data-group-id="6628645064-2">)</span><span class="w">
+  </span><span class="k">end</span><span class="p" data-group-id="6628645064-1">)</span></code></pre><p>Any Repo call inside the callback function will be run in a dynamically supervised connection.</p><h2 id="module-migrations" class="section-heading">
   <a href="#module-migrations" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Migrations
 </h2>
@@ -132,21 +131,21 @@ To execute actions in a dynamic repo we follow this pattern:</p><pre><code class
   Example
 </h3>
 <pre><code class="makeup shell"><span class="gp unselectable">$ </span><span class="">mix couchx.gen.mango_index -r MyApp.Repo -n my-mango-index -f username,email
-</span></code></pre><p>This will create a file under <code class="inline">priv/my_app/repo/index/my-mango-index.exs</code> with contents as:</p><pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyMangoIndex</span><span class="w"> </span><span class="k" data-group-id="4685427559-1">do</span><span class="w">
+</span></code></pre><p>This will create a file under <code class="inline">priv/my_app/repo/index/my-mango-index.exs</code> with contents as:</p><pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyMangoIndex</span><span class="w"> </span><span class="k" data-group-id="1951678973-1">do</span><span class="w">
   </span><span class="kn">use</span><span class="w"> </span><span class="nc">Couchx.MangoIndex</span><span class="p">,</span><span class="w"> </span><span class="ss">repo_name</span><span class="p">:</span><span class="w"> </span><span class="nc">MyApp.Repo</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="4685427559-2">do</span><span class="w">
-    </span><span class="n">create_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w"> </span><span class="k" data-group-id="4685427559-3">do</span><span class="w">
-      </span><span class="p" data-group-id="4685427559-4">%{</span><span class="w">
-         </span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4685427559-5">[</span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="4685427559-5">]</span><span class="p">,</span><span class="w">
-       </span><span class="p" data-group-id="4685427559-4">}</span><span class="w">
-    </span><span class="k" data-group-id="4685427559-3">end</span><span class="w">
-  </span><span class="k" data-group-id="4685427559-2">end</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="1951678973-2">do</span><span class="w">
+    </span><span class="n">create_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w"> </span><span class="k" data-group-id="1951678973-3">do</span><span class="w">
+      </span><span class="p" data-group-id="1951678973-4">%{</span><span class="w">
+         </span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1951678973-5">[</span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="1951678973-5">]</span><span class="p">,</span><span class="w">
+       </span><span class="p" data-group-id="1951678973-4">}</span><span class="w">
+    </span><span class="k" data-group-id="1951678973-3">end</span><span class="w">
+  </span><span class="k" data-group-id="1951678973-2">end</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="4685427559-6">do</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="1951678973-6">do</span><span class="w">
     </span><span class="n">drop_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w">
-  </span><span class="k" data-group-id="4685427559-6">end</span><span class="w">
-</span><span class="k" data-group-id="4685427559-1">end</span><span class="w">
+  </span><span class="k" data-group-id="1951678973-6">end</span><span class="w">
+</span><span class="k" data-group-id="1951678973-1">end</span><span class="w">
 </span></code></pre><p>The Map inside the <code class="inline">create_index</code> block will be added to the <code class="inline">index</code> json object, so any structure that can go there can be added here.
 Currently only supported methods are</p><h3 id="module-create_index-string-t-map-t" class="section-heading">
   <a href="#module-create_index-string-t-map-t" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
@@ -197,7 +196,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -206,7 +205,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -215,7 +214,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -238,7 +237,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -268,7 +267,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -277,7 +276,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -286,7 +285,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -302,7 +301,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -311,7 +310,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -327,7 +326,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -336,7 +335,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -352,7 +351,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -361,7 +360,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -370,7 +369,7 @@ Currently only supported methods are</p><h3 id="module-create_index-string-t-map
 
   </div>
 
-    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p></div>
+    <div class="summary-synopsis"><p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p></div>
 
 </div>
 <div class="summary-row">
@@ -409,7 +408,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:autogenerate/1"><code class="inline">Ecto.Adapter.Schema.autogenerate/1</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="checked_out?/1">
@@ -426,7 +425,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:checked_out?/1"><code class="inline">Ecto.Adapter.checked_out?/1</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="checkout/3">
@@ -443,7 +442,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:checkout/3"><code class="inline">Ecto.Adapter.checkout/3</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="create_admin/3">
@@ -494,7 +493,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:delete/4"><code class="inline">Ecto.Adapter.Schema.delete/4</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="delete_admin/2">
@@ -562,7 +561,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:dumpers/2"><code class="inline">Ecto.Adapter.dumpers/2</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="ensure_all_started/2">
@@ -579,7 +578,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:ensure_all_started/2"><code class="inline">Ecto.Adapter.ensure_all_started/2</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="execute/5">
@@ -596,7 +595,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:execute/5"><code class="inline">Ecto.Adapter.Queryable.execute/5</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="execute/6">
@@ -630,7 +629,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:init/1"><code class="inline">Ecto.Adapter.init/1</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="insert/6">
@@ -647,7 +646,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:insert/6"><code class="inline">Ecto.Adapter.Schema.insert/6</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="insert_all/7">
@@ -681,7 +680,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:insert_all/8"><code class="inline">Ecto.Adapter.Schema.insert_all/8</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="loaders/2">
@@ -698,7 +697,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.html#c:loaders/2"><code class="inline">Ecto.Adapter.loaders/2</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="parse_bulk_response/3">
@@ -732,7 +731,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:prepare/2"><code class="inline">Ecto.Adapter.Queryable.prepare/2</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="stream/5">
@@ -749,7 +748,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Queryable.html#c:stream/5"><code class="inline">Ecto.Adapter.Queryable.stream/5</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="update/6">
@@ -766,7 +765,7 @@ Functions
 
   <section class="docstring">
 
-<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.7.1/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p>
+<p>Callback implementation for <a href="https://hexdocs.pm/ecto/3.10.3/Ecto.Adapter.Schema.html#c:update/6"><code class="inline">Ecto.Adapter.Schema.update/6</code></a>.</p>
   </section>
 </section>
 <section class="detail" id="update!/6">
@@ -794,10 +793,10 @@ Functions
 
         <p>
           Find it on Hex:
-          <a href="https://hex.pm/packages/couchx/0.3.0" class="line footer-hex-package">Package</a>
-          <a href="https://preview.hex.pm/preview/couchx/0.3.0" class="line">Preview</a>
+          <a href="https://hex.pm/packages/couchx/0.4.0" class="line footer-hex-package">Package</a>
+          <a href="https://preview.hex.pm/preview/couchx/0.4.0" class="line">Preview</a>
 
-            <a href="https://preview.hex.pm/preview/couchx/0.3.0/show/lib/couchx/adapter.ex">(current file)</a>
+            <a href="https://preview.hex.pm/preview/couchx/0.4.0/show/lib/couchx/adapter.ex">(current file)</a>
 
         </p>
 
