@@ -25,7 +25,7 @@ defmodule Couchx.DynamicRepo do
           callback.()
         after
           __MODULE__.put_dynamic_repo(default_dynamic_repo)
-          if Process.alive?(repo), do: DynamicSupervisor.stop(repo)
+          if Process.alive?(repo), do: Supervisor.stop(repo)
         end
       end
 

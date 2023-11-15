@@ -1,5 +1,5 @@
 defmodule Couchx.DbConnection do
-  use GenServer, restart: :temporary
+  use GenServer, restart: :transient
 
   def start_link(args) do
     config = build_config(args)
