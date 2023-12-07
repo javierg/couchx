@@ -127,7 +127,6 @@ defmodule Couchx.Adapter do
       ```
 
       Removing the documents from the database.
-
   """
   import Couchx.CouchId
 
@@ -178,7 +177,7 @@ defmodule Couchx.Adapter do
     constraints = Constraint.call(meta[:pid], repo, fields)
 
     constraints
-    |> DocumentState.merge_constraints
+    |> DocumentState.merge_constraints()
     |> do_insert(repo, constraints, fields, returning, meta)
   end
 
@@ -228,8 +227,8 @@ defmodule Couchx.Adapter do
   def execute(meta, query_meta, query_cache, params, _opts) do
     {_, {_, query}}        = query_cache
     %{select: select}      = query_meta
-    keys                   = query[:keys]
-    query_options          = query[:options]
+    keys                   = fetch_query_keys(query_cache)
+    query_options          = query[:options] || %{}
     {all_fields, module}   = fetch_fields(query_meta.sources)
     namespace              = build_namespace(module)
 
@@ -251,6 +250,11 @@ defmodule Couchx.Adapter do
     do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options))
     |> QueryHandler.query_results(fields, fields_meta)
   end
+
+  defp fetch_query_keys({_, {_, query}})
+    when query == [:delete], do: [:delete]
+
+  defp fetch_query_keys({_, {_, query}}), do: query[:keys]
 
   def create_admin(server, name, password) do
     Couchx.DbConnection.create_admin(server, name, password)
@@ -485,8 +489,12 @@ defmodule Couchx.Adapter do
 
   # Pending implementation
 
-  def delete(meta, _meta_schema, params, _opts) do
-    doc_id = URI.encode_www_form(params[:_id])
+  def delete(meta, meta_schema, params, _opts) do
+    doc_id = meta_schema
+             |> Map.get(:schema)
+             |> build_namespace()
+             |> namespace_id(params[:_id])
+
     Couchx.DbConnection.get(meta[:pid], doc_id)
     |> find_to_delete(meta[:pid], doc_id)
   end
@@ -547,10 +555,14 @@ defmodule Couchx.Adapter do
   end
 
   defp try_to_persist_insert(%{ok: _}, data, returning, meta, url, body) do
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
-    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
-    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
-    {:ok, Enum.zip(returning, values)}
+    case Couchx.DbConnection.insert(meta[:pid], url, body) do
+      {:ok, response} ->
+        values = Map.merge(data, %{_rev: response["rev"]})
+        values = fetch_insert_values(response, values, returning)
+        {:ok, Enum.zip(returning, values)}
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp do_update(errors, _constraints, _id, _response, _data, _returning, _server)
@@ -590,7 +602,10 @@ defmodule Couchx.Adapter do
   end
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
-    data = for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
+    data = case response do
+      %{_id: _id} -> response
+      _ -> for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
+    end
 
     Enum.map(returning, fn(k)->
       Map.get(data, k)

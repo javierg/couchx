@@ -17,6 +17,12 @@ defmodule Couchx.QueryHandler do
     {0, []}
   end
 
+  def query_results({:ok, response}, fields, metadata)
+    when is_list(response) do
+    Enum.map(response, &query_results(&1, fields, metadata))
+    |> execute_response
+  end
+
   def query_results({:ok, response}, fields, metadata) do
     query_results(response, fields, metadata)
   end
@@ -33,6 +39,10 @@ defmodule Couchx.QueryHandler do
 
   def query_results(%{"doc" => doc}, fields, metadata) do
     process_docs(doc, fields, metadata)
+  end
+
+  def query_results(%{"ok" => true, "id"=> id, "rev"=> rev}, _fields, nil) do
+    [_id: id, _rev: rev]
   end
 
   def query_results(doc, fields, metadata) do
