@@ -4,6 +4,19 @@
 
 The Adapter supports 1 main Repo, but also dynamic repos where you can querie on multiple Dbs with a dynamic supervisor.
 
+To create a Repo follow the Ecto default instructions, but we will need to add returning true option in the Repo module,
+this is in order to have the _rev value updated into the documents.
+
+```
+defmodule MyApp.Repo do
+  use Ecto.Repo,
+    otp_app: :my_app,
+    adapter: Couchx.Adapter
+
+  def default_options(_), do: [returning: true]
+end
+```
+
 The supported functions in this version are:
 
 ```
