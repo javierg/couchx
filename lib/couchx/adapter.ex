@@ -370,14 +370,41 @@ defmodule Couchx.Adapter do
   end
 
   defp do_query(server, properties, namespace, values, query_options) when is_list(properties) do
-    selector = Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
+    selector = extract_properties(namespace, properties, values)
     query = select_query(selector, query_options)
     Couchx.DbConnection.find(server, query)
+  end
+
+  defp extract_properties(namespace, [%{"$and" => properties}], values) do
+    extract_properties(namespace, properties, values)
+  end
+
+  defp extract_properties(namespace, properties, values) do
+    Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
   end
 
   defp select_query(selector, options) do
     %{selector: selector}
     |> Map.merge(options)
+  end
+
+  defp process_property({key, selector}, acc, values)
+    when is_map(selector) do
+      with [operator] <- Map.keys(selector),
+           false <- operator == "$eq" do
+        %{key => selector}
+      else
+        true ->
+          case selector do
+            %{"$eq" => {_, [], [value_index]}} ->
+              value = Enum.fetch!(values, value_index)
+              Map.put(acc, key, value)
+            %{"$eq" => value} ->
+              Map.put(acc, key, value)
+        _ ->
+            {:error, "unsupported selector"}
+          end
+      end
   end
 
   defp process_property({key, {:^, [], [value_index]}}, acc, values) do
@@ -386,7 +413,12 @@ defmodule Couchx.Adapter do
   end
 
   defp process_property({key, value}, acc, _values) do
-    Map.put(acc, key, value)
+    case key do
+      "$or" ->
+        Map.put(acc, "$and", [%{key => value}])
+      _ ->
+        Map.put(acc, key, value)
+    end
   end
 
   defp process_property(property, acc, values) do
