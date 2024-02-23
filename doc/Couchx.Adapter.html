@@ -5,9 +5,9 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.25.2">
-    <meta name="project" content="Couchx v0.4.1">
+    <meta name="project" content="Couchx v0.4.4">
 
-    <title>Couchx.Adapter — Couchx v0.4.1</title>
+    <title>Couchx.Adapter — Couchx v0.4.4</title>
     <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
 
     <script src="dist/sidebar_items-5461d0ecee.js"></script>
@@ -58,7 +58,7 @@
 Couchx
       </a>
       <strong class="sidebar-projectVersion">
-        v0.4.1
+        v0.4.4
       </strong>
     </div>
 
@@ -82,7 +82,7 @@ Couchx
     <div id="content" class="content-inner">
 
       <h1>
-Couchx.Adapter <small class="app-vsn">(Couchx v0.4.1)</small>
+Couchx.Adapter <small class="app-vsn">(Couchx v0.4.4)</small>
 
       </h1>
 
@@ -104,25 +104,25 @@ Couchx.Adapter <small class="app-vsn">(Couchx v0.4.1)</small>
 </h2>
 <p>Couchx supports 1 main repo and many dynamic supervised repos.
 A dynamic repo will allow you to have multiple db connections in your application.
-To achieve this, you will need to setup a <a href="https://hexdocs.pm/elixir/Registry.html"><code class="inline">Registry</code></a> in the application like:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="4173002565-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="4173002565-1">)</span><span class="w"> </span><span class="k" data-group-id="4173002565-2">do</span><span class="w">
-    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="4173002565-3">[</span><span class="w">
-      </span><span class="p" data-group-id="4173002565-4">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxRegistry</span><span class="p" data-group-id="4173002565-4">}</span><span class="p">,</span><span class="w">
+To achieve this, you will need to setup a <a href="https://hexdocs.pm/elixir/Registry.html"><code class="inline">Registry</code></a> in the application like:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="2221091176-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="2221091176-1">)</span><span class="w"> </span><span class="k" data-group-id="2221091176-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="2221091176-3">[</span><span class="w">
+      </span><span class="p" data-group-id="2221091176-4">{</span><span class="nc">Registry</span><span class="p">,</span><span class="w"> </span><span class="ss">keys</span><span class="p">:</span><span class="w"> </span><span class="ss">:unique</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="nc">CouchxRegistry</span><span class="p" data-group-id="2221091176-4">}</span><span class="p">,</span><span class="w">
       </span><span class="n">...</span><span class="w">
-    </span><span class="p" data-group-id="4173002565-3">]</span><span class="w">
+    </span><span class="p" data-group-id="2221091176-3">]</span><span class="w">
     </span><span class="n">...</span><span class="w">
-  </span><span class="k" data-group-id="4173002565-2">end</span></code></pre><p>The Restry name is tied up to the code so it must be called <code class="inline">CouchxRegistry</code>.</p><p>The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="2906318457-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="2906318457-1">)</span><span class="w"> </span><span class="k" data-group-id="2906318457-2">do</span><span class="w">
-    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="2906318457-3">[</span><span class="w">
+  </span><span class="k" data-group-id="2221091176-2">end</span></code></pre><p>The Restry name is tied up to the code so it must be called <code class="inline">CouchxRegistry</code>.</p><p>The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kd">def</span><span class="w"> </span><span class="nf">start</span><span class="p" data-group-id="2871134251-1">(</span><span class="c">_type</span><span class="p">,</span><span class="w"> </span><span class="c">_args</span><span class="p" data-group-id="2871134251-1">)</span><span class="w"> </span><span class="k" data-group-id="2871134251-2">do</span><span class="w">
+    </span><span class="n">children</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p" data-group-id="2871134251-3">[</span><span class="w">
       </span><span class="nc">MyDb.Repo</span><span class="w">
-    </span><span class="p" data-group-id="2906318457-3">]</span><span class="w">
+    </span><span class="p" data-group-id="2871134251-3">]</span><span class="w">
     </span><span class="n">...</span><span class="w">
-  </span><span class="k" data-group-id="2906318457-2">end</span></code></pre><h3 id="module-dynamic-repo-queries" class="section-heading">
+  </span><span class="k" data-group-id="2871134251-2">end</span></code></pre><h3 id="module-dynamic-repo-queries" class="section-heading">
   <a href="#module-dynamic-repo-queries" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Dynamic Repo queries
 </h3>
 <p>The dynamic repos are implemente with a Macro that you can get into your repo as:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="kn">use</span><span class="w"> </span><span class="nc">CouchxDyncamicTepo</span><span class="p">,</span><span class="w"> </span><span class="ss">otp_app</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">name</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_repo</span></code></pre><p>This is used to setup a <code class="inline">run</code> function, with a callback as argument.
-To execute actions in a dynamic repo we follow this pattern:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="2729479154-1">(</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
-    </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="2729479154-2">(</span><span class="nc">MyStruct</span><span class="p">,</span><span class="w"> </span><span class="n">doc_id</span><span class="p" data-group-id="2729479154-2">)</span><span class="w">
-  </span><span class="k">end</span><span class="p" data-group-id="2729479154-1">)</span></code></pre><p>Any Repo call inside the callback function will be run in a dynamically supervised connection.</p><h2 id="module-migrations" class="section-heading">
+To execute actions in a dynamic repo we follow this pattern:</p><pre><code class="makeup elixir"><span class="w">  </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">run</span><span class="p" data-group-id="7664375123-1">(</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">
+    </span><span class="nc">MyDynamicRepo</span><span class="o">.</span><span class="n">get</span><span class="p" data-group-id="7664375123-2">(</span><span class="nc">MyStruct</span><span class="p">,</span><span class="w"> </span><span class="n">doc_id</span><span class="p" data-group-id="7664375123-2">)</span><span class="w">
+  </span><span class="k">end</span><span class="p" data-group-id="7664375123-1">)</span></code></pre><p>Any Repo call inside the callback function will be run in a dynamically supervised connection.</p><h2 id="module-migrations" class="section-heading">
   <a href="#module-migrations" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Migrations
 </h2>
@@ -131,21 +131,21 @@ To execute actions in a dynamic repo we follow this pattern:</p><pre><code class
   Example
 </h3>
 <pre><code class="makeup shell"><span class="gp unselectable">$ </span><span class="">mix couchx.gen.mango_index -r MyApp.Repo -n my-mango-index -f username,email
-</span></code></pre><p>This will create a file under <code class="inline">priv/my_app/repo/index/my-mango-index.exs</code> with contents as:</p><pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyMangoIndex</span><span class="w"> </span><span class="k" data-group-id="9009539060-1">do</span><span class="w">
+</span></code></pre><p>This will create a file under <code class="inline">priv/my_app/repo/index/my-mango-index.exs</code> with contents as:</p><pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyMangoIndex</span><span class="w"> </span><span class="k" data-group-id="0386565410-1">do</span><span class="w">
   </span><span class="kn">use</span><span class="w"> </span><span class="nc">Couchx.MangoIndex</span><span class="p">,</span><span class="w"> </span><span class="ss">repo_name</span><span class="p">:</span><span class="w"> </span><span class="nc">MyApp.Repo</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="9009539060-2">do</span><span class="w">
-    </span><span class="n">create_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w"> </span><span class="k" data-group-id="9009539060-3">do</span><span class="w">
-      </span><span class="p" data-group-id="9009539060-4">%{</span><span class="w">
-         </span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="9009539060-5">[</span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="9009539060-5">]</span><span class="p">,</span><span class="w">
-       </span><span class="p" data-group-id="9009539060-4">}</span><span class="w">
-    </span><span class="k" data-group-id="9009539060-3">end</span><span class="w">
-  </span><span class="k" data-group-id="9009539060-2">end</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="0386565410-2">do</span><span class="w">
+    </span><span class="n">create_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w"> </span><span class="k" data-group-id="0386565410-3">do</span><span class="w">
+      </span><span class="p" data-group-id="0386565410-4">%{</span><span class="w">
+         </span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="0386565410-5">[</span><span class="s">&quot;username&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="0386565410-5">]</span><span class="p">,</span><span class="w">
+       </span><span class="p" data-group-id="0386565410-4">}</span><span class="w">
+    </span><span class="k" data-group-id="0386565410-3">end</span><span class="w">
+  </span><span class="k" data-group-id="0386565410-2">end</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="9009539060-6">do</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="0386565410-6">do</span><span class="w">
     </span><span class="n">drop_index</span><span class="w"> </span><span class="s">&quot;my-mango-index&quot;</span><span class="w">
-  </span><span class="k" data-group-id="9009539060-6">end</span><span class="w">
-</span><span class="k" data-group-id="9009539060-1">end</span><span class="w">
+  </span><span class="k" data-group-id="0386565410-6">end</span><span class="w">
+</span><span class="k" data-group-id="0386565410-1">end</span><span class="w">
 </span></code></pre><p>The Map inside the <code class="inline">create_index</code> block will be added to the <code class="inline">index</code> json object, so any structure that can go there can be added here.
 Currently only supported methods are</p><h3 id="module-create_index-string-t-map-t" class="section-heading">
   <a href="#module-create_index-string-t-map-t" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
@@ -793,10 +793,10 @@ Functions
 
         <p>
           Find it on Hex:
-          <a href="https://hex.pm/packages/couchx/0.4.1" class="line footer-hex-package">Package</a>
-          <a href="https://preview.hex.pm/preview/couchx/0.4.1" class="line">Preview</a>
+          <a href="https://hex.pm/packages/couchx/0.4.4" class="line footer-hex-package">Package</a>
+          <a href="https://preview.hex.pm/preview/couchx/0.4.4" class="line">Preview</a>
 
-            <a href="https://preview.hex.pm/preview/couchx/0.4.1/show/lib/couchx/adapter.ex">(current file)</a>
+            <a href="https://preview.hex.pm/preview/couchx/0.4.4/show/lib/couchx/adapter.ex">(current file)</a>
 
         </p>
 

@@ -27,7 +27,7 @@ defmodule Couchx.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:earmark, "~> 0.1", only: :dev},
+      {:earmark, "~> 1.4", only: :dev},
       {:ecto_sql, "~> 3.10"},
       {:ex_doc, "~> 0.11", only: :dev},
       {:httpoison, "~> 1.8"},
