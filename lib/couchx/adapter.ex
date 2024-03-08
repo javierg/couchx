@@ -467,6 +467,7 @@ defmodule Couchx.Adapter do
   defp parse_view_response({:ok, %{"rows" => rows}}, true, module_name) do
     rows
     |> Enum.map(&Map.get(&1, "doc"))
+    |> Enum.filter(& &1)
     |> Enum.map(&build_structs(&1, module_name))
   end
 
