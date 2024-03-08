@@ -9,7 +9,8 @@ defmodule Couchx.Constraint do
     ) do
       if with_schema?(schema) do
         params = Enum.into(fields, %{})
-        changeset = schema.changeset(schema.__struct__, params)
+        schema_struct = struct(schema.__struct__, prev_fields)
+        changeset = schema.changeset(schema_struct, params)
         fields = Keyword.merge(prev_fields, fields)
 
         changeset

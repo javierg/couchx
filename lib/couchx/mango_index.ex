@@ -28,14 +28,14 @@ defmodule Couchx.MangoIndex do
       defp build_index(index), do: %{index: index}
 
       defp persist_index(doc) do
-        {adapter, meta} = Ecto.Repo.Registry.lookup(@repo_name)
-        Couchx.DbConnection.index(meta[:pid], doc)
+        repo = Ecto.Repo.Registry.lookup(@repo_name)
+        Couchx.DbConnection.index(repo.pid, doc)
         |> handle_response
       end
 
       defp delete_index(name, id \\ nil) do
-        {adapter, meta} = Ecto.Repo.Registry.lookup(@repo_name)
-        Couchx.DbConnection.delete(meta[:pid], :index, name, id)
+        repo = Ecto.Repo.Registry.lookup(@repo_name)
+        Couchx.DbConnection.delete(repo.pid, :index, name, id)
         |> handle_response
       end
 

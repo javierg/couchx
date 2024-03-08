@@ -4,6 +4,19 @@
 
 The Adapter supports 1 main Repo, but also dynamic repos where you can querie on multiple Dbs with a dynamic supervisor.
 
+To create a Repo follow the Ecto default instructions, but we will need to add returning true option in the Repo module,
+this is in order to have the _rev value updated into the documents.
+
+```
+defmodule MyApp.Repo do
+  use Ecto.Repo,
+    otp_app: :my_app,
+    adapter: Couchx.Adapter
+
+  def default_options(_), do: [returning: true]
+end
+```
+
 The supported functions in this version are:
 
 ```
@@ -107,7 +120,7 @@ It rely on repos declared under `config.exs`
 ```
 import Config
 
-config :my_app, ecto_repos: ["repo", "custom_repo"]
+config :my_app, ecto_repos: [MyApp.Repo]
 ...
 ```
 
@@ -119,7 +132,7 @@ defmodule MyApp.Repo.Index.MyMangoIndex do
 
   def up do
     create_index "my-mango-index" do
-      %{fields: ["name", "email"]}
+      %{fields: ~w[name email]}
     end
   end
 
@@ -138,6 +151,24 @@ which will persist the index document in the database defined by the repo.
 And if you want to remove the index you can call:
 
 `$ mix couch.mango_index.down -r MyApp.Repo, -n my-mango-index`
+
+Mango indexes could be run in the release like this:
+
+```elixir
+defmodule MyApp.Release do
+  @moduledoc """
+  Used for executing DB release tasks when run in production without Mix
+  installed.
+  """
+
+  @app :my_app
+
+  def migrate do
+    Application.ensure_all_started(@app)
+    Couchx.Migrator.run(MyApp.Repo, :up)
+  end
+end
+```
 
 ## TODO:
 

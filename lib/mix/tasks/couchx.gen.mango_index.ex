@@ -81,7 +81,7 @@ defmodule Mix.Tasks.Couchx.Gen.MangoIndex do
   defp parsed_fields([]), do: "[]"
 
   defp fields_to_sigil(fields) do
-    "~#{split_fields(List.first(fields))}"
+    "~w[#{split_fields(List.first(fields))}]"
   end
 
   defp split_fields(fields) do

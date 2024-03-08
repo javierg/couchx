@@ -25,12 +25,11 @@ defmodule Couchx.Adapter do
 
   Couchx supports 1 main repo and many dynamic supervised repos.
   A dynamic repo will allow you to have multiple db connections in your application.
-  To achieve this, you will need to setup a `DynamicSupervisor` and a `Registry` in the application like:
+  To achieve this, you will need to setup a `Registry` in the application like:
 
   ```
     def start(_type, _args) do
       children = [
-        {DynamicSupervisor, strategy: :one_for_one, name: CouchxSupervisor}
         {Registry, keys: :unique, name: CouchxRegistry},
         ...
       ]
@@ -128,13 +127,14 @@ defmodule Couchx.Adapter do
       ```
 
       Removing the documents from the database.
-
   """
   import Couchx.CouchId
 
   @behaviour Ecto.Adapter
   @behaviour Ecto.Adapter.Schema
   @behaviour Ecto.Adapter.Queryable
+
+  @encodable_keys ~w[key keys startkey endkey start_key end_key]a
 
   defmacro __before_compile__(_env), do: :ok
 
@@ -177,7 +177,7 @@ defmodule Couchx.Adapter do
     constraints = Constraint.call(meta[:pid], repo, fields)
 
     constraints
-    |> DocumentState.merge_constraints
+    |> DocumentState.merge_constraints()
     |> do_insert(repo, constraints, fields, returning, meta)
   end
 
@@ -202,26 +202,33 @@ defmodule Couchx.Adapter do
   end
 
   def execute(:view, meta, design, view, key, query_opts) do
-    opts = query_opts
-           |> Enum.into(%{})
-           |> Map.merge(%{key: key})
+    query_opts = query_opts ++ [key: Jason.encode!(key)]
+    execute(:view, meta, design, view, query_opts)
+  end
 
+  def execute(:view, meta, design, view, query_opts) do
+    opts = prepare_view_options(query_opts)
     Couchx.DbConnection.get(meta[:pid], "_design/#{design}/_view/#{view}", opts)
-    |> parse_view_response(opts[:include_docs])
+    |> parse_view_response(opts[:include_docs], query_opts[:module])
   end
 
   def execute(:find, meta, selector, fields, opts) do
     query = %{selector: selector, fields: fields}
 
     Couchx.DbConnection.find(meta[:pid], query, opts)
-    |> parse_view_response(opts[:include_docs])
+    |> parse_view_response(opts[:include_docs], opts[:module])
+  end
+
+  def execute(:request, meta, method, path, opts) do
+    Couchx.DbConnection.raw_request(meta[:pid], method, path, opts)
+    |> parse_view_response(opts[:include_docs], opts[:module])
   end
 
   def execute(meta, query_meta, query_cache, params, _opts) do
     {_, {_, query}}        = query_cache
     %{select: select}      = query_meta
-    keys                   = query[:keys]
-    query_options          = query[:options]
+    keys                   = fetch_query_keys(query_cache)
+    query_options          = query[:options] || %{}
     {all_fields, module}   = fetch_fields(query_meta.sources)
     namespace              = build_namespace(module)
 
@@ -243,6 +250,11 @@ defmodule Couchx.Adapter do
     do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options))
     |> QueryHandler.query_results(fields, fields_meta)
   end
+
+  defp fetch_query_keys({_, {_, query}})
+    when query == [:delete], do: [:delete]
+
+  defp fetch_query_keys({_, {_, query}}), do: query[:keys]
 
   def create_admin(server, name, password) do
     Couchx.DbConnection.create_admin(server, name, password)
@@ -358,14 +370,41 @@ defmodule Couchx.Adapter do
   end
 
   defp do_query(server, properties, namespace, values, query_options) when is_list(properties) do
-    selector = Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
+    selector = extract_properties(namespace, properties, values)
     query = select_query(selector, query_options)
     Couchx.DbConnection.find(server, query)
+  end
+
+  defp extract_properties(namespace, [%{"$and" => properties}], values) do
+    extract_properties(namespace, properties, values)
+  end
+
+  defp extract_properties(namespace, properties, values) do
+    Enum.reduce(properties, %{type: namespace}, &process_property(&1, &2, values))
   end
 
   defp select_query(selector, options) do
     %{selector: selector}
     |> Map.merge(options)
+  end
+
+  defp process_property({key, selector}, acc, values)
+    when is_map(selector) do
+      with [operator] <- Map.keys(selector),
+           false <- operator == "$eq" do
+        %{key => selector}
+      else
+        true ->
+          case selector do
+            %{"$eq" => {_, [], [value_index]}} ->
+              value = Enum.fetch!(values, value_index)
+              Map.put(acc, key, value)
+            %{"$eq" => value} ->
+              Map.put(acc, key, value)
+        _ ->
+            {:error, "unsupported selector"}
+          end
+      end
   end
 
   defp process_property({key, {:^, [], [value_index]}}, acc, values) do
@@ -374,7 +413,12 @@ defmodule Couchx.Adapter do
   end
 
   defp process_property({key, value}, acc, _values) do
-    Map.put(acc, key, value)
+    case key do
+      "$or" ->
+        Map.put(acc, "$and", [%{key => value}])
+      _ ->
+        Map.put(acc, key, value)
+    end
   end
 
   defp process_property(property, acc, values) do
@@ -420,24 +464,34 @@ defmodule Couchx.Adapter do
     Map.put(data, :_id, id)
   end
 
-  defp parse_view_response({:ok, %{"rows" => rows}}, true) do
+  defp parse_view_response({:ok, %{"rows" => rows}}, true, module_name) do
     rows
     |> Enum.map(&Map.get(&1, "doc"))
-    |> Enum.map(&build_structs/1)
+    |> Enum.filter(& &1)
+    |> Enum.map(&build_structs(&1, module_name))
   end
-  defp parse_view_response({:ok, %{"rows" => rows}}, _), do: rows
-  defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _), do: docs
 
-  defp build_structs(map) do
+  defp parse_view_response({:ok, %{"rows" => rows}}, _, _), do: rows
+  defp parse_view_response({:ok, %{"bookmark" => _, "docs" => docs}}, _, _), do: docs
+  defp parse_view_response({:ok, raw_response}, _, _), do: raw_response
+
+  defp parse_view_response({:error, _} = error, _, _), do: error
+
+  defp build_structs(map, module_name) do
+    doc = Enum.reduce(map, %{}, &keys_to_atoms/2)
+    module_name = fetch_module_name(map, module_name)
+    struct(module_name, doc)
+  end
+
+  defp fetch_module_name(map, nil) do
     doc_type = Map.get(map, "_id")
                |> String.replace(~r{(/.+)}, "")
                |> Macro.camelize
 
-    module = :"Elixir.SDB.#{doc_type}" # TODO: pass module name in view execute
-
-    doc = Enum.reduce(map, %{}, &keys_to_atoms/2)
-    struct(module, doc)
+    :"Elixir.SDB.#{doc_type}"
   end
+
+  defp fetch_module_name(_map, name), do: name
 
   defp keys_to_atoms({key, value}, acc) do
     Map.put(acc, String.to_atom(key), value)
@@ -446,20 +500,20 @@ defmodule Couchx.Adapter do
   defp put_conn_id(config), do: config ++ [id: config[:name]]
 
   defp couchdb_supervisor_spec(config) do
-    {
-      config[:id],
-      {
-        DynamicSupervisor,
-        :start_child,
+    sup_id = config[:id] || CouchxAdapter
+
+    %{
+      id: sup_id,
+      start: {
+        Couchx.DbConnection,
+        :start_link,
         [
-          CouchxSupervisor,
-          {Couchx.DbConnection, config}
+          config,
         ]
       },
-      :permanent,
-      :infinity,
-      :worker,
-      [config[:id]]
+      restart: :permanent,
+      shutdown: :infinity,
+      type: :supervisor
     }
   end
 
@@ -468,8 +522,12 @@ defmodule Couchx.Adapter do
 
   # Pending implementation
 
-  def delete(meta, _meta_schema, params, _opts) do
-    doc_id = URI.encode_www_form(params[:_id])
+  def delete(meta, meta_schema, params, _opts) do
+    doc_id = meta_schema
+             |> Map.get(:schema)
+             |> build_namespace()
+             |> namespace_id(params[:_id])
+
     Couchx.DbConnection.get(meta[:pid], doc_id)
     |> find_to_delete(meta[:pid], doc_id)
   end
@@ -530,10 +588,14 @@ defmodule Couchx.Adapter do
   end
 
   defp try_to_persist_insert(%{ok: _}, data, returning, meta, url, body) do
-    {:ok, response} = Couchx.DbConnection.insert(meta[:pid], url, body)
-    response = Map.merge(data, %{_id: response["id"], _rev: response["rev"]})
-    values = Enum.map(returning, fn(k)-> Map.get(response, k) end)
-    {:ok, Enum.zip(returning, values)}
+    case Couchx.DbConnection.insert(meta[:pid], url, body) do
+      {:ok, response} ->
+        values = Map.merge(data, %{_rev: response["rev"]})
+        values = fetch_insert_values(response, values, returning)
+        {:ok, Enum.zip(returning, values)}
+      {:error, error} ->
+        {:error, error}
+    end
   end
 
   defp do_update(errors, _constraints, _id, _response, _data, _returning, _server)
@@ -573,7 +635,10 @@ defmodule Couchx.Adapter do
   end
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
-    data = for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
+    data = case response do
+      %{_id: _id} -> response
+      _ -> for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
+    end
 
     Enum.map(returning, fn(k)->
       Map.get(data, k)
@@ -614,5 +679,13 @@ defmodule Couchx.Adapter do
     namespace
     |> namespace_id(id)
     |> URI.decode_www_form
+  end
+
+  defp prepare_view_options(options) do
+    @encodable_keys
+    |> Enum.reduce(options, fn key, acc ->
+       Keyword.replace(acc, key, Jason.encode!(options[key]))
+    end)
+    |> Enum.into(%{})
   end
 end

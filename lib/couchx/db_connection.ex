@@ -1,5 +1,5 @@
 defmodule Couchx.DbConnection do
-  use GenServer, restart: :temporary
+  use GenServer, restart: :transient
 
   def start_link(args) do
     config = build_config(args)
@@ -10,6 +10,10 @@ defmodule Couchx.DbConnection do
 
   def init(args) do
     {:ok, args}
+  end
+
+  def terminate(reason, _state) do
+    IO.inspect reason
   end
 
   def info(server), do: GenServer.call(server, :info)
@@ -61,6 +65,10 @@ defmodule Couchx.DbConnection do
 
   def index(server, doc) do
     GenServer.call(server, {:index, doc})
+  end
+
+  def raw_request(server, method, path, options \\ []) do
+    GenServer.call(server, {:raw_request, method, path, options})
   end
 
   def handle_call({:index, doc}, _from, state) do
@@ -154,6 +162,23 @@ defmodule Couchx.DbConnection do
 
     request(:get, url, [headers: headers, options: options])
     |> call_response(state)
+  end
+
+  def handle_call({:raw_request, method, path, options}, _from, state) do
+    query_str = build_query_str(options[:query_str])
+    url = "#{state[:base_url]}/#{path}#{query_str}"
+
+    case method do
+      :get ->
+        request(method, url, [headers: state[:base_headers], options: state[:options]])
+      :delete ->
+        request(:delete, url, [headers: state[:base_headers], options: []])
+      _ ->
+        body = Jason.encode!(options[:body])
+        request(method, url, body, [headers: state[:base_headers], options: state[:options]])
+    end
+    |> call_response(state)
+
   end
 
   def handle_call({:find, query, options}, _from, state) do

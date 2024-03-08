@@ -17,20 +17,24 @@ defmodule Couchx.DynamicRepo do
         name = if (is_atom(name)), do: name, else: String.to_atom(name)
         default_dynamic_repo = get_dynamic_repo()
         start_opts = [name: name] ++ credentials
-        {:ok, repo} = __MODULE__.start_link(start_opts)
+        repo = __MODULE__.start_link(start_opts)
+               |> maybe_fetch_repo()
 
         try do
           __MODULE__.put_dynamic_repo(repo)
           callback.()
         after
           __MODULE__.put_dynamic_repo(default_dynamic_repo)
-          DynamicSupervisor.stop(repo)
+          if Process.alive?(repo), do: Supervisor.stop(repo)
         end
       end
 
       defp fetch_config do
         Application.get_env(@otp_app, __MODULE__)
       end
+
+      defp maybe_fetch_repo({:ok, repo}), do: repo
+      defp maybe_fetch_repo({:error, {:already_started, repo}}), do: repo
     end
   end
 end

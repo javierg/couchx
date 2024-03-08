@@ -6,10 +6,21 @@ defmodule Couchx.QueryHandler do
   ]
 
   def query_results([], _, _), do: {0, []}
-  def query_results({:error, reason}, _, _), do: raise Couchx.DbError, message: "#{reason}"
+  def query_results({:error, reason}, _, _), do: raise(Couchx.DbError, message: "#{reason}")
+
+  def query_results([%{"_id" => _}|_] = docs, fields, metadata) do
+    Enum.map(docs, &process_docs(&1, fields, metadata))
+    |> execute_response
+  end
 
   def query_results({:ok, response}, _, _) when response in @empty_response do
     {0, []}
+  end
+
+  def query_results({:ok, response}, fields, metadata)
+    when is_list(response) do
+    Enum.map(response, &query_results(&1, fields, metadata))
+    |> execute_response
   end
 
   def query_results({:ok, response}, fields, metadata) do
@@ -28,6 +39,10 @@ defmodule Couchx.QueryHandler do
 
   def query_results(%{"doc" => doc}, fields, metadata) do
     process_docs(doc, fields, metadata)
+  end
+
+  def query_results(%{"ok" => true, "id"=> id, "rev"=> rev}, _fields, nil) do
+    [_id: id, _rev: rev]
   end
 
   def query_results(doc, fields, metadata) do
