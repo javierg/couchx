@@ -5,9 +5,9 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.25.2">
-    <meta name="project" content="Couchx v0.4.4">
+    <meta name="project" content="Couchx v0.4.5">
 
-    <title>mix couchx.mango_index — Couchx v0.4.4</title>
+    <title>mix couchx.mango_index — Couchx v0.4.5</title>
     <link rel="stylesheet" href="dist/elixir-37545fd2f35b96531434.css" />
 
     <script src="dist/sidebar_items-5461d0ecee.js"></script>
@@ -58,7 +58,7 @@
 Couchx
       </a>
       <strong class="sidebar-projectVersion">
-        v0.4.4
+        v0.4.5
       </strong>
     </div>
 
@@ -82,7 +82,7 @@ Couchx
     <div id="content" class="content-inner">
 
       <h1>
-mix couchx.mango_index <small class="app-vsn">(Couchx v0.4.4)</small>
+mix couchx.mango_index <small class="app-vsn">(Couchx v0.4.5)</small>
 
       </h1>
 
@@ -92,19 +92,19 @@ mix couchx.mango_index <small class="app-vsn">(Couchx v0.4.4)</small>
   <a href="#module-examples" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Examples
 </h2>
-<pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyIndex</span><span class="w"> </span><span class="k" data-group-id="1502187432-1">do</span><span class="w">
+<pre><code class="makeup elixir"><span class="kd">defmodule</span><span class="w"> </span><span class="nc">MyApp.Repo.Index.MyIndex</span><span class="w"> </span><span class="k" data-group-id="4171983990-1">do</span><span class="w">
   </span><span class="kn">use</span><span class="w"> </span><span class="nc">Couchx.MangoIndex</span><span class="p">,</span><span class="w"> </span><span class="ss">repo_name</span><span class="p">:</span><span class="w"> </span><span class="nc">BS.Repo</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="1502187432-2">do</span><span class="w">
-    </span><span class="n">create_index</span><span class="p" data-group-id="1502187432-3">(</span><span class="s">&quot;my-index&quot;</span><span class="p" data-group-id="1502187432-3">)</span><span class="w"> </span><span class="k" data-group-id="1502187432-4">do</span><span class="w">
-      </span><span class="p" data-group-id="1502187432-5">%{</span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="1502187432-6">[</span><span class="s">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="1502187432-6">]</span><span class="p" data-group-id="1502187432-5">}</span><span class="w">
-    </span><span class="k" data-group-id="1502187432-4">end</span><span class="w">
-  </span><span class="k" data-group-id="1502187432-2">end</span><span class="w">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">up</span><span class="w"> </span><span class="k" data-group-id="4171983990-2">do</span><span class="w">
+    </span><span class="n">create_index</span><span class="p" data-group-id="4171983990-3">(</span><span class="s">&quot;my-index&quot;</span><span class="p" data-group-id="4171983990-3">)</span><span class="w"> </span><span class="k" data-group-id="4171983990-4">do</span><span class="w">
+      </span><span class="p" data-group-id="4171983990-5">%{</span><span class="ss">fields</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="4171983990-6">[</span><span class="s">&quot;name&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;email&quot;</span><span class="p" data-group-id="4171983990-6">]</span><span class="p" data-group-id="4171983990-5">}</span><span class="w">
+    </span><span class="k" data-group-id="4171983990-4">end</span><span class="w">
+  </span><span class="k" data-group-id="4171983990-2">end</span><span class="w">
 
-  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="1502187432-7">do</span><span class="w">
-    </span><span class="n">drop_index</span><span class="p" data-group-id="1502187432-8">(</span><span class="s">&quot;my-index&quot;</span><span class="p" data-group-id="1502187432-8">)</span><span class="w">
-  </span><span class="k" data-group-id="1502187432-7">end</span><span class="w">
-</span><span class="k" data-group-id="1502187432-1">end</span></code></pre><p>Current convention is that the file name uses <code class="inline">-</code> to separate words, and this is used to create de module name.</p><h2 id="module-example" class="section-heading">
+  </span><span class="kd">def</span><span class="w"> </span><span class="nf">down</span><span class="w"> </span><span class="k" data-group-id="4171983990-7">do</span><span class="w">
+    </span><span class="n">drop_index</span><span class="p" data-group-id="4171983990-8">(</span><span class="s">&quot;my-index&quot;</span><span class="p" data-group-id="4171983990-8">)</span><span class="w">
+  </span><span class="k" data-group-id="4171983990-7">end</span><span class="w">
+</span><span class="k" data-group-id="4171983990-1">end</span></code></pre><p>Current convention is that the file name uses <code class="inline">-</code> to separate words, and this is used to create de module name.</p><h2 id="module-example" class="section-heading">
   <a href="#module-example" class="hover-link"><span class="icon-link" aria-hidden="true"></span></a>
   Example
 </h2>
@@ -115,7 +115,7 @@ mix couchx.mango_index <small class="app-vsn">(Couchx v0.4.4)</small>
   Example
 </h2>
 <pre><code class="makeup elixir"><span class="w">  </span><span class="n">confix</span><span class="w"> </span><span class="ss">:couchx</span><span class="p">,</span><span class="w"> </span><span class="ss">otp_app</span><span class="p">:</span><span class="w"> </span><span class="ss">:my_app</span><span class="w">
-  </span><span class="n">config</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">ecto_repos</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="8649145880-1">[</span><span class="nc">MyApp.Repo</span><span class="p">,</span><span class="w"> </span><span class="nc">Custom.Repo</span><span class="p" data-group-id="8649145880-1">]</span></code></pre><p>The task will look for paths for all the repos and process the indexes it finds.</p>
+  </span><span class="n">config</span><span class="w"> </span><span class="ss">:my_app</span><span class="p">,</span><span class="w"> </span><span class="ss">ecto_repos</span><span class="p">:</span><span class="w"> </span><span class="p" data-group-id="2923225688-1">[</span><span class="nc">MyApp.Repo</span><span class="p">,</span><span class="w"> </span><span class="nc">Custom.Repo</span><span class="p" data-group-id="2923225688-1">]</span></code></pre><p>The task will look for paths for all the repos and process the indexes it finds.</p>
         </section>
 
 
@@ -124,10 +124,10 @@ mix couchx.mango_index <small class="app-vsn">(Couchx v0.4.4)</small>
 
         <p>
           Find it on Hex:
-          <a href="https://hex.pm/packages/couchx/0.4.4" class="line footer-hex-package">Package</a>
-          <a href="https://preview.hex.pm/preview/couchx/0.4.4" class="line">Preview</a>
+          <a href="https://hex.pm/packages/couchx/0.4.5" class="line footer-hex-package">Package</a>
+          <a href="https://preview.hex.pm/preview/couchx/0.4.5" class="line">Preview</a>
 
-            <a href="https://preview.hex.pm/preview/couchx/0.4.4/show/lib/mix/tasks/couchx.mango_index.ex">(current file)</a>
+            <a href="https://preview.hex.pm/preview/couchx/0.4.5/show/lib/mix/tasks/couchx.mango_index.ex">(current file)</a>
 
         </p>
 
