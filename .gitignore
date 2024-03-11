@@ -1,8 +1,9 @@
 .DS_Store
 /_build
 /deps
+/doc/*
 /priv/static/
-/log/**/*.log
+/https://community.openai.com/t/any-updates-on-assistant-api-streaming/551809/56log/**/*.log
 
 .tool-versions
 .idea
