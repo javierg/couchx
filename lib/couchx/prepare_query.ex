@@ -17,7 +17,7 @@ defmodule Couchx.PrepareQuery do
 
   @operator_keys Keyword.keys(@operators)
 
-  def call(%{wheres: wheres, limit: _limit, offset: _offset} = query) do
+  def call(%{wheres: wheres, limit: _limit} = query) do
     keys    = Enum.map(wheres, &parse_where/1)
     options = parse_options(query)
 
