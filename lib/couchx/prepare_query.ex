@@ -17,7 +17,7 @@ defmodule Couchx.PrepareQuery do
 
   @operator_keys Keyword.keys(@operators)
 
-  def call(%{wheres: wheres, limit: _limit} = query) do
+  def call(%{wheres: wheres, limit: _limit, offset: _offset} = query) do
     keys    = Enum.map(wheres, &parse_where/1)
     options = parse_options(query)
 
@@ -76,10 +76,11 @@ defmodule Couchx.PrepareQuery do
     %{"$or": [Enum.reduce(list, %{}, &Map.merge(&2, build_field_condition(&1)))] }
   end
 
-  defp parse_options(%{order_bys: order_bys, limit: limit}) do
+  defp parse_options(%{order_bys: order_bys, limit: limit, offset: skip}) do
     %{}
     |> try_add_limit(limit)
     |> try_add_order(order_bys)
+    |> try_add_skip(skip)
   end
 
   defp try_add_limit(options, nil), do: options
@@ -92,6 +93,12 @@ defmodule Couchx.PrepareQuery do
   defp try_add_order(opts, [%{expr: orders}]) do
     order = Enum.map(orders, &parse_orders/1)
     Map.merge(opts, %{sort: order})
+  end
+
+  defp try_add_skip(options, nil), do: options
+  defp try_add_skip(options, %{expr: skip}) do
+    options
+    |> Map.merge(%{skip: skip})
   end
 
   defp parse_orders({order, {{_, _, [_, field]}, _, _}}) do

@@ -371,8 +371,14 @@ defmodule Couchx.Adapter do
 
   defp do_query(server, properties, namespace, values, query_options) when is_list(properties) do
     selector = extract_properties(namespace, properties, values)
+    query_options = extract_options_properties(namespace, query_options, values)
     query = select_query(selector, query_options)
     Couchx.DbConnection.find(server, query)
+  end
+
+  defp extract_options_properties(namespace, query_options, values) do
+    extract_properties(namespace, query_options, values)
+    |> Map.drop([:type])
   end
 
   defp extract_properties(namespace, [%{"$and" => properties}], values) do
