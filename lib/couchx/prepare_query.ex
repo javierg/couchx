@@ -37,12 +37,14 @@ defmodule Couchx.PrepareQuery do
   end
 
   defp build_query_condition(condition, [{{_, [], [{_, [], [_]}, key]}, [], []}, value]) do
-    case condition do
-      :== ->
+    cond do
+      condition == :== ->
         %{ key => value }
-      operator when operator in @operator_keys ->
-        %{ key => %{ @operators[operator] => value } }
-      _ ->
+      condition == :in and key == :_id ->
+        %{ key => value }
+      condition in @operator_keys ->
+        %{ key => %{ @operators[condition] => value } }
+      true ->
         {:error, "invalid query operator"}
     end
   end
