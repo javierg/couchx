@@ -214,7 +214,6 @@ defmodule Couchx.Adapter do
 
   def execute(:find, meta, selector, fields, opts) do
     query = %{selector: selector, fields: fields}
-
     Couchx.DbConnection.find(meta[:pid], query, opts)
     |> parse_view_response(opts[:include_docs], opts[:module])
   end
@@ -398,7 +397,7 @@ defmodule Couchx.Adapter do
     when is_map(selector) do
       with [operator] <- Map.keys(selector),
            false <- operator == "$eq" do
-        %{key => selector}
+        %{key => process_selector(selector, values)}
       else
         true ->
           case selector do
@@ -432,7 +431,11 @@ defmodule Couchx.Adapter do
     |> Map.merge(acc)
   end
 
-  #defp do_query(_, _, _, _), do: {:error, :not_implemented}
+  defp process_selector(%{"$in" => {:^, [], [start, amount]}}, values) do
+    %{"$in" => Enum.slice(values, start, amount)}
+  end
+
+  defp process_selector(selector, _values), do: selector
 
   defp build_namespace(module) do
     module
