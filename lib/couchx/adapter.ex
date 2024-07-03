@@ -136,8 +136,10 @@ defmodule Couchx.Adapter do
 
   @encodable_keys ~w[key keys startkey endkey start_key end_key]a
 
+  @impl true
   defmacro __before_compile__(_env), do: :ok
 
+  @impl true
   def init(config) do
     config           = put_conn_id(config)
     log              = Keyword.get(config, :log, :debug)
@@ -148,31 +150,43 @@ defmodule Couchx.Adapter do
     {:ok, spec, %{telemetry: telemetry, opts: [returning: true], config: config}}
   end
 
+  @impl true
   def ensure_all_started(_repo, _type), do: HTTPoison.start
+
+  @impl true
   def checkout(_adapter, _config, result), do: result
 
+  @impl true
   def dumpers({:map, _}, type), do: [&Ecto.Type.embedded_dump(type, &1, :json)]
   def dumpers(_primitive, type), do: [type]
 
+  @impl true
   def loaders({:map, _}, type), do: [&Ecto.Type.embedded_load(type, &1, :json)]
+
+  @impl true
   def loaders(_primitive, type), do: [type]
 
+  @impl true
   def autogenerate(:id), do: nil
   def autogenerate(:binary_id) do
     Ecto.UUID.cast!(Ecto.UUID.bingenerate)
   end
 
+  @impl true
   def checked_out?(arg), do: arg
 
+  @impl true
   def prepare(:all, query) do
     prepared_query = PrepareQuery.call(query)
     {:nocache, {System.unique_integer([:positive]), prepared_query}}
   end
 
+  @impl true
   def prepare(:delete_all, _query) do
     {:nocache, {System.unique_integer([:positive]), [:delete]}}
   end
 
+  @impl true
   def insert(meta, repo, fields, _on_conflict, returning, _options) do
     constraints = Constraint.call(meta[:pid], repo, fields)
 
@@ -181,6 +195,7 @@ defmodule Couchx.Adapter do
     |> do_insert(repo, constraints, fields, returning, meta)
   end
 
+  @impl true
   def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, _opts) do
     docs = Enum.map(data, &Enum.into(&1, %{}))
 
@@ -223,6 +238,7 @@ defmodule Couchx.Adapter do
     |> parse_view_response(opts[:include_docs], opts[:module])
   end
 
+  @impl true
   def execute(meta, query_meta, query_cache, params, _opts) do
     {_, {_, query}}        = query_cache
     %{select: select}      = query_meta
@@ -282,7 +298,7 @@ defmodule Couchx.Adapter do
   end
 
   defp fetch_fields({{_resource, module, _}}) do
-    fields = module.__struct__
+    fields = module.__struct__()
                |> Map.keys
                |> Kernel.--([:__struct__, :__meta__])
                |> Enum.map(&Atom.to_string/1)
@@ -541,9 +557,12 @@ defmodule Couchx.Adapter do
     |> find_to_delete(meta[:pid], doc_id)
   end
 
-  def insert_all(_a, _b, _c, _d, _e, _f, _g) do
+  @impl true
+  def delete(meta, meta_schema, params, _returning, _opts) do
+    delete(meta, meta_schema, params, [])
   end
 
+  @impl true
   def update(meta, repo, fields, identity, returning, _opts) do
     data            = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
     doc_id          = URI.encode_www_form(identity[:_id])
@@ -557,13 +576,14 @@ defmodule Couchx.Adapter do
     |> do_update(constraints, doc_id, response, data, returning, meta[:pid])
   end
 
-
   def update!(meta, repo, fields, identity, returning, a) do
     {:ok, values} = update(meta, repo, fields, identity, returning, a)
     values
   end
 
+  @impl true
   def stream(_a, _b, _c, _d, _e) do
+    # pending to implement
   end
 
   def do_insert(errors, _, _, _, _, _)
