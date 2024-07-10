@@ -564,16 +564,19 @@ defmodule Couchx.Adapter do
 
   @impl true
   def update(meta, repo, fields, identity, returning, _opts) do
+    %{schema: schema} = repo
     data            = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
     doc_id          = URI.encode_www_form(identity[:_id])
     {:ok, response} = Couchx.DbConnection.get(meta[:pid], doc_id)
 
     prev_fields = for {key, val} <- response, do: {String.to_atom(key), val}
+    params = Enum.into(prev_fields, %{})
+    changeset = struct(schema) |> Ecto.Changeset.cast(params, Map.keys(params))
     constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
 
     constraints
     |> DocumentState.merge_constraints
-    |> do_update(constraints, doc_id, response, data, returning, meta[:pid])
+    |> do_update(constraints, doc_id, changeset.changes, data, returning, meta[:pid])
   end
 
   def update!(meta, repo, fields, identity, returning, a) do
@@ -650,8 +653,8 @@ defmodule Couchx.Adapter do
     {:error, errors}
   end
 
-  defp try_to_persist_update(%{ok: _}, doc_id, response, returning, data, server) do
-    values = Map.merge(response, data)
+  defp try_to_persist_update(%{ok: _}, doc_id, prev_data, returning, data, server) do
+    values = Map.merge(prev_data, data)
     body   = Jason.encode!(values)
 
     case Couchx.DbConnection.insert(server, doc_id, body) do
