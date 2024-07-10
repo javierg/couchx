@@ -571,7 +571,8 @@ defmodule Couchx.Adapter do
 
     prev_fields = for {key, val} <- response, do: {String.to_atom(key), val}
     params = Enum.into(prev_fields, %{})
-    changeset = struct(schema) |> Ecto.Changeset.cast(params, Map.keys(params))
+    schema_fields = schema.__schema__(:fields)
+    changeset = struct(schema) |> Ecto.Changeset.cast(params, schema_fields)
     constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
 
     constraints
