@@ -573,11 +573,13 @@ defmodule Couchx.Adapter do
     params = Enum.into(prev_fields, %{})
     schema_fields = schema.__schema__(:fields)
     changeset = struct(schema) |> Ecto.Changeset.cast(params, schema_fields)
+    prev_data = for {key, val} <- changeset.changes, into: %{}, do: {Atom.to_string(key), val}
+    prev_data = Map.merge(response, prev_data)
     constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
 
     constraints
     |> DocumentState.merge_constraints
-    |> do_update(constraints, doc_id, changeset.changes, data, returning, meta[:pid])
+    |> do_update(constraints, doc_id, prev_data, data, returning, meta[:pid])
   end
 
   def update!(meta, repo, fields, identity, returning, a) do
