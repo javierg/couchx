@@ -3,7 +3,8 @@ defmodule Couchx.PrepareQuery do
     ==: "$eq",
     or: "$or",
     and: "$and",
-    in: "$in"
+    in: "$in",
+    like: "$regex"
   ]
 
   @operators [
@@ -12,7 +13,8 @@ defmodule Couchx.PrepareQuery do
     <: "$lt",
     >=: "$gte",
     <=: "$lte",
-    !=: "$ne"
+    !=: "$ne",
+    in: "$in"
   ]
 
   @operator_keys Keyword.keys(@operators)
