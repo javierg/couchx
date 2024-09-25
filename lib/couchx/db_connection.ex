@@ -69,7 +69,6 @@ defmodule Couchx.DbConnection do
 
   def raw_request(server, method, path, options \\ []) do
     timeout = options[:timeout] || 5_000
-    options = Keyword.delete(options, :timeout)
 
     GenServer.call(server, {:raw_request, method, path, options}, timeout)
   end
@@ -170,15 +169,16 @@ defmodule Couchx.DbConnection do
   def handle_call({:raw_request, method, path, options}, _from, state) do
     query_str = build_query_str(options[:query_str])
     url = "#{state[:base_url]}/#{path}#{query_str}"
+    req_options = state[:options] ++ options
 
     case method do
       :get ->
-        request(method, url, [headers: state[:base_headers], options: state[:options]])
+        request(method, url, headers: state[:base_headers], options: req_options)
       :delete ->
-        request(:delete, url, [headers: state[:base_headers], options: []])
+        request(:delete, url, headers: state[:base_headers], options: [])
       _ ->
         body = Jason.encode!(options[:body])
-        request(method, url, body, [headers: state[:base_headers], options: state[:options]])
+        request(method, url, body, headers: state[:base_headers], options: req_options)
     end
     |> call_response(state)
 
