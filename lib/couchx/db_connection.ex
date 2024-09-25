@@ -68,7 +68,10 @@ defmodule Couchx.DbConnection do
   end
 
   def raw_request(server, method, path, options \\ []) do
-    GenServer.call(server, {:raw_request, method, path, options})
+    timeout = options[:timeout] || 5_000
+    options = Keyword.delete(options, :timeout)
+
+    GenServer.call(server, {:raw_request, method, path, options}, timeout)
   end
 
   def handle_call({:index, doc}, _from, state) do
