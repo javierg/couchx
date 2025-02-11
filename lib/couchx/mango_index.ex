@@ -8,8 +8,8 @@ defmodule Couchx.MangoIndex do
 
       def create_index(name, do: block) do
         block
-        |> build_index
-        |> add_type
+        |> build_index()
+        |> add_type()
         |> Map.merge(%{name: name, ddoc: name})
         |> persist_index
       end
@@ -22,8 +22,12 @@ defmodule Couchx.MangoIndex do
         delete_index(name, id)
       end
 
-      defp add_type(%{type: _type} = doc), do: doc
-      defp add_type(doc), do: Map.merge(doc, @default_type)
+      defp add_type(doc) do
+        case doc do
+          %{type: type} when is_binary(type) and byte_size(type) > 0 -> doc
+          _ -> Map.merge(doc, @default_type)
+        end
+      end
 
       defp build_index(index), do: %{index: index}
 
