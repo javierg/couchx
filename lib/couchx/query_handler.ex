@@ -6,7 +6,7 @@ defmodule Couchx.QueryHandler do
   ]
 
   def query_results([], _, _), do: {0, []}
-  def query_results({:error, reason}, _, _), do: {0, []}
+  def query_results({:error, _reason}, _, _), do: {0, []}
 
   def query_results([%{"_id" => _}|_] = docs, fields, metadata) do
     Enum.map(docs, &process_docs(&1, fields, metadata))

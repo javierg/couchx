@@ -4,7 +4,7 @@ defmodule Couchx.MixProject do
   def project do
     [
       app: :couchx,
-      version: "0.5.0",
+      version: "0.5.1",
       elixir: "~> 1.12",
       name: "Couchx",
       description: "Limited CouchDb Adapter for Ecto",
