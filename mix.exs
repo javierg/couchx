@@ -32,19 +32,20 @@ defmodule Couchx.MixProject do
       {:ex_doc, "~> 0.11", only: :dev},
       {:httpoison, "~> 1.8"},
       {:inflex, "~> 2.0.0"},
+      {:credo, "~> 1.7"},
       {:jason, "~>1.1"}
     ]
   end
 
   defp package do
     [
-     files: ["lib", "mix.exs", "README.md"],
-     maintainers: ["Javier Guerra"],
-     licenses: ["MIT"],
-     links: %{
-       "GitHub" => "https://github.com/javierg/couchx",
-       "Docs" => "https://hexdocs.pm/couchx"
-       }
-     ]
+      files: ["lib", "mix.exs", "README.md"],
+      maintainers: ["Javier Guerra"],
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/javierg/couchx",
+        "Docs" => "https://hexdocs.pm/couchx"
+      }
+    ]
   end
 end

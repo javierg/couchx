@@ -1,4 +1,8 @@
 defmodule Couchx.Finders do
+  @moduledoc """
+  Helper macro module to add find function to Ecto Repos.
+  """
+
   defmacro __using__(repo: repo, dynamic: is_dynamic) do
     quote location: :keep do
       @repo unquote(repo)

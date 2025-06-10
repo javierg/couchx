@@ -1,4 +1,8 @@
 defmodule Couchx.MangoIndex do
+  @moduledoc """
+  Macro to generate migration scripts to generate mango indexes
+  """
+
   defmacro __using__(repo_name: repo_name) do
     quote location: :keep do
       @repo_name unquote(repo_name)
@@ -33,16 +37,17 @@ defmodule Couchx.MangoIndex do
 
       defp persist_index(doc) do
         repo = Ecto.Repo.Registry.lookup(@repo_name)
+
         Couchx.DbConnection.index(repo.pid, doc)
         |> handle_response
       end
 
       defp delete_index(name, id \\ nil) do
         repo = Ecto.Repo.Registry.lookup(@repo_name)
+
         Couchx.DbConnection.delete(repo.pid, :index, name, id)
         |> handle_response
       end
-
 
       defp handle_response({:ok, response}), do: response
       defp handle_response({_, response}), do: {:error, response}
