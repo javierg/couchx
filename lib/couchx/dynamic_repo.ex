@@ -1,4 +1,9 @@
 defmodule Couchx.DynamicRepo do
+  @moduledoc """
+  Macro module to support dyamic repos for Couchx adapter.
+  Useful to handle multiple databases.
+  """
+
   defmacro __using__(otp_app: otp_app, name: name) do
     quote location: :keep do
       @otp_app unquote(otp_app)
@@ -14,11 +19,13 @@ defmodule Couchx.DynamicRepo do
       end
 
       def with_dynamic_repo(name, credentials, callback) do
-        name = if (is_atom(name)), do: name, else: String.to_atom(name)
+        name = if is_atom(name), do: name, else: String.to_atom(name)
         default_dynamic_repo = get_dynamic_repo()
         start_opts = [name: name] ++ credentials
-        repo = __MODULE__.start_link(start_opts)
-               |> maybe_fetch_repo()
+
+        repo =
+          __MODULE__.start_link(start_opts)
+          |> maybe_fetch_repo()
 
         try do
           __MODULE__.put_dynamic_repo(repo)

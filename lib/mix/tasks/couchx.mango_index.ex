@@ -44,7 +44,6 @@ defmodule Mix.Tasks.Couchx.MangoIndex do
   The task will look for paths for all the repos and process the indexes it finds.
   """
 
-
   @shortdoc "create indexes declared on priv/repo_path"
 
   @impl true
@@ -68,7 +67,7 @@ defmodule Mix.Tasks.Couchx.MangoIndex do
   defp report_response([]), do: nil
 
   defp report_response({:error, response}) do
-    IO.puts "Error #{response}"
+    IO.puts("Error #{response}")
   end
 
   defp report_response({:ok, indexes, _}) do
@@ -80,15 +79,17 @@ defmodule Mix.Tasks.Couchx.MangoIndex do
       case index do
         %{"result" => "exists"} = index ->
           state = if index["result"] == "exists", do: "already exists", else: index["result"]
-          IO.puts "\n==== Index #{index["name"]} #{state} ====="
-          IO.inspect index
-          IO.puts "========================\n"
+          IO.puts("\n==== Index #{index["name"]} #{state} =====")
+          IO.puts(inspect(index))
+          IO.puts("========================\n")
+
         {:error, state} ->
-          IO.puts "\n======================"
-          IO.puts state
-          IO.puts "======================\n"
+          IO.puts("\n======================")
+          IO.puts(state)
+          IO.puts("======================\n")
+
         default ->
-          IO.inspect default
+          IO.puts(inspect(default))
       end
     end
   end

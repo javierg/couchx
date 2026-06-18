@@ -1,10 +1,14 @@
 defmodule Couchx.Migrator do
+  @moduledoc """
+  Module to support mix migrate tasks
+  """
+
   import Couchx.Support.ApplicationHelper
 
   def run(repo, :up) do
     repo
     |> index_path
-    |> Path.wildcard
+    |> Path.wildcard()
     |> require_files
     |> Enum.map(&fetch_modules/1)
     |> run_direction(:up)
@@ -46,7 +50,7 @@ defmodule Couchx.Migrator do
   defp migration_code(file_path) do
     file_path
     |> to_string
-    |> File.read!
+    |> File.read!()
   end
 
   defp migration_to_module(%{"module" => module}) do
@@ -54,6 +58,7 @@ defmodule Couchx.Migrator do
     |> Kernel.<>(module)
     |> base_module_atom
   end
+
   defp require_files(files) do
     Enum.each(files, &Code.require_file/1)
     files

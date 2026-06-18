@@ -1,11 +1,16 @@
 defmodule Mix.Tasks.Couchx.Gen.MangoIndex do
+  @moduledoc """
+  This module will generate Mago indexes for couchdb queries
+  """
+
   use Mix.Task
+
   import Macro, only: [camelize: 1]
   import Mix.Generator
   import Mix.Ecto
   import Couchx.Support.ApplicationHelper
 
-  @cwd File.cwd!
+  @cwd File.cwd!()
 
   @impl true
   def run(args) do
@@ -14,7 +19,7 @@ defmodule Mix.Tasks.Couchx.Gen.MangoIndex do
     [repo] = parse_repo(args)
     index_name = parse_index_name(args)
 
-    assigns= [
+    assigns = [
       repo_name: repo_name(repo),
       index_name: index_name,
       index_module: index_module(index_name),
@@ -50,15 +55,15 @@ defmodule Mix.Tasks.Couchx.Gen.MangoIndex do
     "#{@cwd}/lib/templates/mango_index.exs.eex"
   end
 
-  defp parse_index_name(["-n"|t]) do
+  defp parse_index_name(["-n" | t]) do
     List.first(t)
   end
 
-  defp parse_index_name(["--name"|t]) do
+  defp parse_index_name(["--name" | t]) do
     List.first(t)
   end
 
-  defp parse_index_name([_|t]) do
+  defp parse_index_name([_ | t]) do
     parse_index_name(t)
   end
 
@@ -66,15 +71,15 @@ defmodule Mix.Tasks.Couchx.Gen.MangoIndex do
     raise "Missing Index Name"
   end
 
-  defp parsed_fields(["-f"|t]) do
+  defp parsed_fields(["-f" | t]) do
     fields_to_sigil(t)
   end
 
-  defp parsed_fields(["--fields"|t]) do
+  defp parsed_fields(["--fields" | t]) do
     fields_to_sigil(t)
   end
 
-  defp parsed_fields([_|t]) do
+  defp parsed_fields([_ | t]) do
     parsed_fields(t)
   end
 

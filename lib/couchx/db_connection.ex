@@ -1,4 +1,8 @@
 defmodule Couchx.DbConnection do
+  @moduledoc """
+  Connection GenServer that handles all db server requests and responses
+  """
+
   use GenServer, restart: :transient
 
   def start_link(args) do
@@ -13,7 +17,7 @@ defmodule Couchx.DbConnection do
   end
 
   def terminate(reason, _state) do
-    IO.inspect reason
+    IO.puts(inspect(reason))
   end
 
   def info(server), do: GenServer.call(server, :info)
@@ -75,16 +79,16 @@ defmodule Couchx.DbConnection do
 
   def handle_call({:index, doc}, _from, state) do
     headers = state[:base_headers]
-    url     = "#{state[:base_url]}/_index"
-    body    = Jason.encode!(doc)
+    url = "#{state[:base_url]}/_index"
+    body = Jason.encode!(doc)
 
-    request(:post, url, body, [headers: headers, options: []])
+    request(:post, url, body, headers: headers, options: [])
     |> call_response(state)
   end
 
   def handle_call({:delete_admin, name}, _from, state) do
-    url      = "#{state[:base_url]}/_users/org.couchdb.user:#{name}"
-    opts     = [headers: state[:base_headers], options: state[:options]]
+    url = "#{state[:base_url]}/_users/org.couchdb.user:#{name}"
+    opts = [headers: state[:base_headers], options: state[:options]]
     user_doc = request(:get, url, opts)
 
     request(:delete, "#{url}?rev=#{user_doc["_rev"]}", opts)
@@ -95,13 +99,14 @@ defmodule Couchx.DbConnection do
     opts = [headers: state[:base_headers], options: state[:options]]
 
     create_role(state[:base_url], name, name, opts)
+
     create_admin_user(state[:base_url], name, password, opts)
     |> call_response(state)
     |> call_response(state)
   end
 
   def handle_call({:create_db, name}, _from, state) do
-    url  =  "#{state[:base_url]}/#{name}"
+    url = "#{state[:base_url]}/#{name}"
     opts = [headers: state[:base_headers], options: state[:options]]
 
     request(:put, url, [], opts)
@@ -109,7 +114,7 @@ defmodule Couchx.DbConnection do
   end
 
   def handle_call({:delete, doc_id, rev}, _from, state) do
-    url  =  "#{state[:base_url]}/#{doc_id}?rev=#{rev}"
+    url = "#{state[:base_url]}/#{doc_id}?rev=#{rev}"
     opts = [headers: state[:base_headers], options: state[:options]]
 
     request(:delete, url, opts)
@@ -117,7 +122,7 @@ defmodule Couchx.DbConnection do
   end
 
   def handle_call({:delete_db, name}, _from, state) do
-    url  =  "#{state[:base_url]}/#{name}"
+    url = "#{state[:base_url]}/#{name}"
     opts = [headers: state[:base_headers], options: state[:options]]
 
     request(:delete, url, opts)
@@ -125,44 +130,43 @@ defmodule Couchx.DbConnection do
   end
 
   def handle_call(:info, _from, state) do
-    request(:get, state[:base_url], [headers: state[:base_headers], options: state[:options]])
+    request(:get, state[:base_url], headers: state[:base_headers], options: state[:options])
     |> call_response(state)
   end
 
   def handle_call({:all_docs, keys, options}, _from, state) do
-    headers   = state[:base_headers]
+    headers = state[:base_headers]
     with_docs = options[:include_docs] || false
-    url       = state[:base_url] <> "/_all_docs?include_docs=#{with_docs}"
-    body      = Jason.encode!(%{keys: keys})
+    url = state[:base_url] <> "/_all_docs?include_docs=#{with_docs}"
+    body = Jason.encode!(%{keys: keys})
 
-    request(:post, url, body, [headers: headers, options: []])
+    request(:post, url, body, headers: headers, options: [])
     |> call_response(state)
-
   end
 
   def handle_call({:bulk_docs, docs, options}, _from, state) do
     headers = state[:base_headers]
-    url     = state[:base_url] <> "/_bulk_docs"
-    body    = Jason.encode!(%{docs: docs})
+    url = state[:base_url] <> "/_bulk_docs"
+    body = Jason.encode!(%{docs: docs})
 
-    request(:post, url, body, [headers: headers, options: options])
+    request(:post, url, body, headers: headers, options: options)
     |> call_response(state)
   end
 
   def handle_call({:insert, resource, body, options}, _from, state) do
-    headers  = state[:base_headers]
-    url      = state[:base_url] <> "/#{resource}"
+    headers = state[:base_headers]
+    url = state[:base_url] <> "/#{resource}"
 
-    request(:put, url, body, [headers: headers, options: options])
+    request(:put, url, body, headers: headers, options: options)
     |> call_response(state)
   end
 
   def handle_call({:get, resource, query, options}, _from, state) do
-    headers   = state[:base_headers]
+    headers = state[:base_headers]
     query_str = build_query_str(query)
-    url       = "#{state[:base_url]}/#{resource}#{query_str}"
+    url = "#{state[:base_url]}/#{resource}#{query_str}"
 
-    request(:get, url, [headers: headers, options: options])
+    request(:get, url, headers: headers, options: options)
     |> call_response(state)
   end
 
@@ -174,31 +178,32 @@ defmodule Couchx.DbConnection do
     case method do
       :get ->
         request(method, url, headers: state[:base_headers], options: req_options)
+
       :delete ->
         request(:delete, url, headers: state[:base_headers], options: [])
+
       _ ->
         body = Jason.encode!(options[:body])
         request(method, url, body, headers: state[:base_headers], options: req_options)
     end
     |> call_response(state)
-
   end
 
   def handle_call({:find, query, options}, _from, state) do
-    headers   = state[:base_headers]
+    headers = state[:base_headers]
     query_str = build_query_str(options[:query_str])
-    url       = "#{state[:base_url]}/_find#{query_str}"
-    body      = Jason.encode!(query)
+    url = "#{state[:base_url]}/_find#{query_str}"
+    body = Jason.encode!(query)
 
-    request(:post, url, body, [headers: headers, options: options])
+    request(:post, url, body, headers: headers, options: options)
     |> call_response(state)
   end
 
   def handle_call({:delete_index, name, id}, _from, state) do
-    headers   = state[:base_headers]
-    url       = "#{state[:base_url]}/_index/_design/#{id}/json/#{name}"
+    headers = state[:base_headers]
+    url = "#{state[:base_url]}/_index/_design/#{id}/json/#{name}"
 
-    request(:delete, url, [headers: headers, options: []])
+    request(:delete, url, headers: headers, options: [])
     |> call_response(state)
   end
 
@@ -241,6 +246,7 @@ defmodule Couchx.DbConnection do
   defp call_response(response, state), do: {:reply, {:ok, response}, state}
 
   defp build_query_str(nil), do: ""
+
   defp build_query_str(query) do
     "?#{URI.encode_query(query)}"
   end
@@ -258,8 +264,9 @@ defmodule Couchx.DbConnection do
   end
 
   defp fetch_headers(config) do
-    credentials = "#{config[:username]}:#{config[:password]}"
-                    |> Base.encode64()
+    credentials =
+      "#{config[:username]}:#{config[:password]}"
+      |> Base.encode64()
 
     [
       {"Content-Type", "application/json"},
@@ -272,16 +279,18 @@ defmodule Couchx.DbConnection do
   end
 
   defp create_admin_user(base_url, name, password, opts) do
-    url  = "#{base_url}/_users/org.couchdb.user:#{name}"
-    body = name
-           |> user_doc(password)
-           |> Jason.encode!
+    url = "#{base_url}/_users/org.couchdb.user:#{name}"
+
+    body =
+      name
+      |> user_doc(password)
+      |> Jason.encode!()
 
     request(:put, url, body, opts)
   end
 
   defp create_role(base_url, db_name, name, opts) do
-    roles = %{members: %{ names: [], roles: [] }, admins: %{ names: [name], roles: [] } }
+    roles = %{members: %{names: [], roles: []}, admins: %{names: [name], roles: []}}
     request(:put, "#{base_url}/#{db_name}/_security", Jason.encode!(roles), opts)
   end
 
@@ -295,6 +304,7 @@ defmodule Couchx.DbConnection do
   end
 
   defp process_name(nil), do: __MODULE__
+
   defp process_name(name) do
     {:via, Registry, {CouchxRegistry, name}}
   end

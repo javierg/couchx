@@ -1,5 +1,9 @@
 defmodule Couchx.QueryHandler do
-  @empty_response  [
+  @moduledoc """
+  Helpers for handling query results from Couch Adapter
+  """
+
+  @empty_response [
     %{"rows" => []},
     %{"docs" => []},
     %{"bookmark" => "nil", "docs" => []}
@@ -8,7 +12,7 @@ defmodule Couchx.QueryHandler do
   def query_results([], _, _), do: {0, []}
   def query_results({:error, _reason}, _, _), do: {0, []}
 
-  def query_results([%{"_id" => _}|_] = docs, fields, metadata) do
+  def query_results([%{"_id" => _} | _] = docs, fields, metadata) do
     Enum.map(docs, &process_docs(&1, fields, metadata))
     |> execute_response
   end
@@ -18,7 +22,7 @@ defmodule Couchx.QueryHandler do
   end
 
   def query_results({:ok, response}, fields, metadata)
-    when is_list(response) do
+      when is_list(response) do
     Enum.map(response, &query_results(&1, fields, metadata))
     |> execute_response
   end
@@ -41,7 +45,7 @@ defmodule Couchx.QueryHandler do
     process_docs(doc, fields, metadata)
   end
 
-  def query_results(%{"ok" => true, "id"=> id, "rev"=> rev}, _fields, nil) do
+  def query_results(%{"ok" => true, "id" => id, "rev" => rev}, _fields, nil) do
     [_id: id, _rev: rev]
   end
 
@@ -63,14 +67,14 @@ defmodule Couchx.QueryHandler do
   end
 
   defp process_docs(doc, fields, nil) do
-    Enum.reduce(fields, [], fn({key, value}, acc) ->
+    Enum.reduce(fields, [], fn {key, value}, acc ->
       confirmed_value = if doc[key], do: value, else: nil
       acc ++ confirmed_value
     end)
   end
 
   defp process_docs(doc, _fields, meta) do
-    Enum.reduce(meta, [], fn({key, type}, acc) ->
+    Enum.reduce(meta, [], fn {key, type}, acc ->
       value = Map.get(doc, to_string(key))
       acc ++ [Ecto.Type.cast(type, value) |> elem(1)]
     end)

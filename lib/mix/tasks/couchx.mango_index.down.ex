@@ -47,15 +47,15 @@ defmodule Mix.Tasks.Couchx.MangoIndex.Down do
     :ok
   end
 
-  defp fetch_migrations(["-n"|t], repo) do
+  defp fetch_migrations(["-n" | t], repo) do
     build_migration_modules(repo, t)
   end
 
-  defp fetch_migrations(["--names"|t], repo) do
+  defp fetch_migrations(["--names" | t], repo) do
     build_migration_modules(repo, t)
   end
 
-  defp fetch_migrations([_|t], repo) do
+  defp fetch_migrations([_ | t], repo) do
     fetch_migrations(t, repo)
   end
 

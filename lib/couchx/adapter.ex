@@ -141,17 +141,17 @@ defmodule Couchx.Adapter do
 
   @impl true
   def init(config) do
-    config           = put_conn_id(config)
-    log              = Keyword.get(config, :log, :debug)
+    config = put_conn_id(config)
+    log = Keyword.get(config, :log, :debug)
     telemetry_prefix = Keyword.fetch!(config, :telemetry_prefix)
-    telemetry        = {config[:repo], log, telemetry_prefix ++ [:query]}
-    spec             = couchdb_supervisor_spec(config)
+    telemetry = {config[:repo], log, telemetry_prefix ++ [:query]}
+    spec = couchdb_supervisor_spec(config)
 
     {:ok, spec, %{telemetry: telemetry, opts: [returning: true], config: config}}
   end
 
   @impl true
-  def ensure_all_started(_repo, _type), do: HTTPoison.start
+  def ensure_all_started(_repo, _type), do: HTTPoison.start()
 
   @impl true
   def checkout(_adapter, _config, result), do: result
@@ -168,8 +168,9 @@ defmodule Couchx.Adapter do
 
   @impl true
   def autogenerate(:id), do: nil
+
   def autogenerate(:binary_id) do
-    Ecto.UUID.cast!(Ecto.UUID.bingenerate)
+    Ecto.UUID.cast!(Ecto.UUID.bingenerate())
   end
 
   @impl true
@@ -208,12 +209,12 @@ defmodule Couchx.Adapter do
   end
 
   def parse_bulk_response(%{"rev" => rev, "id" => doc_id}, data, schema) do
-    fillers = Enum.map(schema, fn(_)-> nil end)
+    fillers = Enum.map(schema, fn _ -> nil end)
     doc_template = Enum.zip(schema, fillers)
-    response_data = Enum.find(data, fn([{:_id, id} | _]) -> id == doc_id end) ++ [_rev: rev]
+    response_data = Enum.find(data, fn [{:_id, id} | _] -> id == doc_id end) ++ [_rev: rev]
     doc = Keyword.merge(doc_template, response_data)
 
-    Enum.map(schema, fn(key)-> Keyword.get(doc, key) end)
+    Enum.map(schema, fn key -> Keyword.get(doc, key) end)
   end
 
   def execute(:view, meta, design, view, key, query_opts) do
@@ -223,12 +224,14 @@ defmodule Couchx.Adapter do
 
   def execute(:view, meta, design, view, query_opts) do
     opts = prepare_view_options(query_opts)
+
     Couchx.DbConnection.get(meta[:pid], "_design/#{design}/_view/#{view}", opts)
     |> parse_view_response(opts[:include_docs], query_opts[:module])
   end
 
   def execute(:find, meta, selector, fields, opts) do
     query = %{selector: selector, fields: fields}
+
     Couchx.DbConnection.find(meta[:pid], query, opts)
     |> parse_view_response(opts[:include_docs], opts[:module])
   end
@@ -240,34 +243,39 @@ defmodule Couchx.Adapter do
 
   @impl true
   def execute(meta, query_meta, query_cache, params, _opts) do
-    {_, {_, query}}        = query_cache
-    %{select: select}      = query_meta
-    keys                   = fetch_query_keys(query_cache)
-    query_options          = query[:options] || %{}
-    {all_fields, module}   = fetch_fields(query_meta.sources)
-    namespace              = build_namespace(module)
+    {_, {_, query}} = query_cache
+    %{select: select} = query_meta
+    keys = fetch_query_keys(query_cache)
+    query_options = query[:options] || %{}
+    {all_fields, module} = fetch_fields(query_meta.sources)
+    namespace = build_namespace(module)
 
     fields_meta = fields_meta(select[:from])
 
-    fields = case select[:postprocess] do
-      {:map, keyfields} ->
-        Keyword.keys(keyfields)
-        |> Enum.map(&Atom.to_string/1)
-      _-> all_fields
-    end
+    fields =
+      case select[:postprocess] do
+        {:map, keyfields} ->
+          Keyword.keys(keyfields)
+          |> Enum.map(&Atom.to_string/1)
 
-    query = if select[:take] do
-      %{fields: select[:take]}
-    else
-      %{}
-    end
+        _ ->
+          all_fields
+      end
+
+    query =
+      if select[:take] do
+        %{fields: select[:take]}
+      else
+        %{}
+      end
 
     do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options))
     |> QueryHandler.query_results(fields, fields_meta)
   end
 
   defp fetch_query_keys({_, {_, query}})
-    when query == [:delete], do: [:delete]
+       when query == [:delete],
+       do: [:delete]
 
   defp fetch_query_keys({_, {_, query}}), do: query[:keys]
 
@@ -288,31 +296,34 @@ defmodule Couchx.Adapter do
   end
 
   defp fetch_fields({{resource, nil, _}}) do
-    module = ["Elixir", ".", resource]
-               |> Enum.map(&Inflex.singularize/1)
-               |> Enum.map(&String.capitalize/1)
-               |> Enum.join
-               |> String.to_existing_atom
+    module =
+      ["Elixir", ".", resource]
+      |> Enum.map(&Inflex.singularize/1)
+      |> Enum.map_join(&String.capitalize/1)
+      |> String.to_existing_atom()
 
     fetch_fields({{resource, module, nil}})
   end
 
   defp fetch_fields({{_resource, module, _}}) do
-    fields = module.__struct__()
-               |> Map.keys
-               |> Kernel.--([:__struct__, :__meta__])
-               |> Enum.map(&Atom.to_string/1)
+    fields =
+      module.__struct__()
+      |> Map.keys()
+      |> Kernel.--([:__struct__, :__meta__])
+      |> Enum.map(&Atom.to_string/1)
 
     {fields, module}
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids, select) when is_list(ids) do
+  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids, select)
+       when is_list(ids) do
     do_query(server, [%{_id: ids}], namespace, [], select)
   end
 
   defp do_query(server, [%{_id: ids}], namespace, [], _select) when is_list(ids) do
-    doc_ids = Enum.map(ids, &namespace_id(namespace, &1))
-              |> Enum.map(&URI.decode_www_form/1)
+    doc_ids =
+      Enum.map(ids, &namespace_id(namespace, &1))
+      |> Enum.map(&URI.decode_www_form/1)
 
     Couchx.DbConnection.all_docs(server, doc_ids, include_docs: true)
     |> sanitize_collection
@@ -342,16 +353,27 @@ defmodule Couchx.Adapter do
   end
 
   defp do_query(server, [:delete], namespace, [], _select) do
-    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", [limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")])
-    docs = Enum.map(rows, fn(%{"doc" => doc})-> %{_id: doc["_id"], _rev: doc["_rev"], _deleted: true} end)
+    {:ok, %{"rows" => rows}} =
+      Couchx.DbConnection.get(server, "_all_docs",
+        limit: 100,
+        include_docs: true,
+        startkey: Jason.encode!(namespace),
+        endkey: Jason.encode!("#{namespace}/{}")
+      )
+
+    docs =
+      Enum.map(rows, fn %{"doc" => doc} ->
+        %{_id: doc["_id"], _rev: doc["_rev"], _deleted: true}
+      end)
+
     Couchx.DbConnection.bulk_docs(server, docs)
   end
 
   defp do_query(server, [], namespace, [], query_options) do
     limit = query_options[:limit] || 100
-    orders= query_options[:sort]
+    orders = query_options[:sort]
 
-    opts =  [
+    opts = [
       include_docs: true,
       limit: limit,
       include_docs: true,
@@ -359,26 +381,28 @@ defmodule Couchx.Adapter do
       endkey: Jason.encode!("#{namespace}/{}")
     ]
 
-    descending = if orders do
-      [default_order | _] = orders
+    descending =
+      if orders do
+        [default_order | _] = orders
 
-      default_order
-      |> Map.values
-      |> List.flatten
-      |> List.first
-      |> Kernel.==(:desc)
-    end
+        default_order
+        |> Map.values()
+        |> List.flatten()
+        |> List.first()
+        |> Kernel.==(:desc)
+      end
 
-    opts = if descending do
-      startkey = opts[:startkey]
-      endkey = opts[:endkey]
+    opts =
+      if descending do
+        startkey = opts[:startkey]
+        endkey = opts[:endkey]
 
-      Keyword.replace(opts, :startkey, endkey)
-      |> Keyword.replace(:endkey, startkey)
-      |> Kernel.++([descending: true])
-    else
-      opts
-    end
+        Keyword.replace(opts, :startkey, endkey)
+        |> Keyword.replace(:endkey, startkey)
+        |> Kernel.++(descending: true)
+      else
+        opts
+      end
 
     {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", opts)
     Enum.map(rows, &Map.get(&1, "doc"))
@@ -410,22 +434,24 @@ defmodule Couchx.Adapter do
   end
 
   defp process_property({key, selector}, acc, values)
-    when is_map(selector) do
-      with [operator] <- Map.keys(selector),
-           false <- operator == "$eq" do
-        %{key => process_selector(selector, values)}
-      else
-        true ->
-          case selector do
-            %{"$eq" => {_, [], [value_index]}} ->
-              value = Enum.fetch!(values, value_index)
-              Map.put(acc, key, value)
-            %{"$eq" => value} ->
-              Map.put(acc, key, value)
-        _ ->
+       when is_map(selector) do
+    with [operator] <- Map.keys(selector),
+         false <- operator == "$eq" do
+      %{key => process_selector(selector, values)}
+    else
+      true ->
+        case selector do
+          %{"$eq" => {_, [], [value_index]}} ->
+            value = Enum.fetch!(values, value_index)
+            Map.put(acc, key, value)
+
+          %{"$eq" => value} ->
+            Map.put(acc, key, value)
+
+          _ ->
             {:error, "unsupported selector"}
-          end
-      end
+        end
+    end
   end
 
   defp process_property({key, {:^, [], [value_index]}}, acc, values) do
@@ -437,6 +463,7 @@ defmodule Couchx.Adapter do
     case key do
       "$or" ->
         Map.put(acc, "$and", [%{key => value}])
+
       _ ->
         Map.put(acc, key, value)
     end
@@ -455,10 +482,10 @@ defmodule Couchx.Adapter do
 
   defp build_namespace(module) do
     module
-      |> to_string
-      |> String.split(".")
-      |> List.last
-      |> Macro.underscore
+    |> to_string
+    |> String.split(".")
+    |> List.last()
+    |> Macro.underscore()
   end
 
   defp namespace_id(namespace, id) do
@@ -466,8 +493,8 @@ defmodule Couchx.Adapter do
       URI.encode_www_form(id)
     else
       namespace
-        |> Kernel.<>("/#{id}")
-        |> URI.encode_www_form
+      |> Kernel.<>("/#{id}")
+      |> URI.encode_www_form()
     end
   end
 
@@ -477,12 +504,12 @@ defmodule Couchx.Adapter do
 
   defp build_id(data, %{schema: resource}) do
     resource
-      |> to_string
-      |> String.split(".")
-      |> List.last
-      |> Macro.underscore
-      |> Kernel.<>("/#{base_id(data._id)}")
-      |> update_data_id(data)
+    |> to_string
+    |> String.split(".")
+    |> List.last()
+    |> Macro.underscore()
+    |> Kernel.<>("/#{base_id(data._id)}")
+    |> update_data_id(data)
   end
 
   defp update_data_id(id, data) do
@@ -509,9 +536,10 @@ defmodule Couchx.Adapter do
   end
 
   defp fetch_module_name(map, nil) do
-    doc_type = Map.get(map, "_id")
-               |> String.replace(~r{(/.+)}, "")
-               |> Macro.camelize
+    doc_type =
+      Map.get(map, "_id")
+      |> String.replace(~r{(/.+)}, "")
+      |> Macro.camelize()
 
     :"Elixir.SDB.#{doc_type}"
   end
@@ -533,7 +561,7 @@ defmodule Couchx.Adapter do
         Couchx.DbConnection,
         :start_link,
         [
-          config,
+          config
         ]
       },
       restart: :permanent,
@@ -548,10 +576,11 @@ defmodule Couchx.Adapter do
   # Pending implementation
 
   def delete(meta, meta_schema, params, _opts) do
-    doc_id = meta_schema
-             |> Map.get(:schema)
-             |> build_namespace()
-             |> namespace_id(params[:_id])
+    doc_id =
+      meta_schema
+      |> Map.get(:schema)
+      |> build_namespace()
+      |> namespace_id(params[:_id])
 
     Couchx.DbConnection.get(meta[:pid], doc_id)
     |> find_to_delete(meta[:pid], doc_id)
@@ -565,8 +594,8 @@ defmodule Couchx.Adapter do
   @impl true
   def update(meta, repo, fields, identity, returning, _opts) do
     %{schema: schema} = repo
-    data            = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
-    doc_id          = URI.encode_www_form(identity[:_id])
+    data = for {key, val} <- fields, into: %{}, do: {Atom.to_string(key), val}
+    doc_id = URI.encode_www_form(identity[:_id])
     {:ok, response} = Couchx.DbConnection.get(meta[:pid], doc_id)
 
     prev_fields = for {key, val} <- response, do: {String.to_atom(key), val}
@@ -578,7 +607,7 @@ defmodule Couchx.Adapter do
     constraints = Constraint.call(meta[:pid], repo, fields, prev_fields)
 
     constraints
-    |> DocumentState.merge_constraints
+    |> DocumentState.merge_constraints()
     |> do_update(constraints, doc_id, prev_data, data, returning, meta[:pid])
   end
 
@@ -593,16 +622,17 @@ defmodule Couchx.Adapter do
   end
 
   def do_insert(errors, _, _, _, _, _)
-    when length(errors) > 0 do
+      when length(errors) > 0 do
     {:invalid, errors}
   end
 
   def do_insert(_errors, repo, constraints, fields, returning, meta) do
-    data = Enum.into(fields, %{})
-           |> build_id(repo)
-           |> typed_document(repo)
+    data =
+      Enum.into(fields, %{})
+      |> build_id(repo)
+      |> typed_document(repo)
 
-    url  = URI.encode_www_form(data._id)
+    url = URI.encode_www_form(data._id)
     body = Jason.encode!(data)
 
     constraints
@@ -628,14 +658,15 @@ defmodule Couchx.Adapter do
         values = Map.merge(data, %{_rev: response["rev"]})
         values = fetch_insert_values(response, values, returning)
         {:ok, Enum.zip(returning, values)}
+
       {:error, error} ->
         {:error, error}
     end
   end
 
   defp do_update(errors, _constraints, _id, _response, _data, _returning, _server)
-    when length(errors) > 0 do
-      {:invalid, errors}
+       when length(errors) > 0 do
+    {:invalid, errors}
   end
 
   defp do_update(_errors, constraints, doc_id, response, data, returning, server) do
@@ -658,24 +689,26 @@ defmodule Couchx.Adapter do
 
   defp try_to_persist_update(%{ok: _}, doc_id, prev_data, returning, data, server) do
     values = Map.merge(prev_data, data)
-    body   = Jason.encode!(values)
+    body = Jason.encode!(values)
 
     case Couchx.DbConnection.insert(server, doc_id, body) do
       {:ok, response} ->
         values = fetch_insert_values(response, values, returning)
         {:ok, Enum.zip(returning, values)}
+
       {:error, error} ->
         {:error, error}
     end
   end
 
   defp fetch_insert_values(%{"ok" => true}, response, returning) do
-    data = case response do
-      %{_id: _id} -> response
-      _ -> for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
-    end
+    data =
+      case response do
+        %{_id: _id} -> response
+        _ -> for {key, val} <- response, into: %{}, do: {String.to_atom(key), val}
+      end
 
-    Enum.map(returning, fn(k)->
+    Enum.map(returning, fn k ->
       Map.get(data, k)
     end)
   end
@@ -713,13 +746,13 @@ defmodule Couchx.Adapter do
   defp unencoded_namespace_id(namespace, id) do
     namespace
     |> namespace_id(id)
-    |> URI.decode_www_form
+    |> URI.decode_www_form()
   end
 
   defp prepare_view_options(options) do
     @encodable_keys
     |> Enum.reduce(options, fn key, acc ->
-       Keyword.replace(acc, key, Jason.encode!(options[key]))
+      Keyword.replace(acc, key, Jason.encode!(options[key]))
     end)
     |> Enum.into(%{})
   end
