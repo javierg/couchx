@@ -151,7 +151,7 @@ defmodule Couchx.Adapter do
   end
 
   @impl true
-  def ensure_all_started(_repo, _type), do: HTTPoison.start
+  def ensure_all_started(_repo, _type), do: :ok
 
   @impl true
   def checkout(_adapter, _config, result), do: result

@@ -202,36 +202,24 @@ defmodule Couchx.DbConnection do
     |> call_response(state)
   end
 
-  defp request(:delete, url, opts) do
-    headers = opts[:headers]
+  defp request(method, url, opts) when method in [:get, :delete] do
+    headers = opts[:headers] || []
     options = opts[:options] || []
 
-    HTTPoison.delete!(url, headers, options)
-    |> decode_response
+    [method: method, url: url, headers: headers]
+    |> Keyword.merge(options)
+    |> Req.request!()
+    |> then(& &1.body)
   end
 
-  defp request(:get, url, opts) do
-    headers = opts[:headers]
-    options = opts[:options] || []
-
-    HTTPoison.get!(url, headers, options)
-    |> decode_response
-  end
-
-  defp request(:put, url, body, extras) do
-    headers = extras[:headers]
+  defp request(method, url, body, extras) when method in [:post, :put] do
+    headers = extras[:headers] || []
     options = extras[:options] || []
 
-    HTTPoison.put!(url, body, headers, options)
-    |> decode_response
-  end
-
-  defp request(:post, url, body, extras) do
-    headers = extras[:headers]
-    options = extras[:options] || []
-
-    HTTPoison.post!(url, body, headers, options)
-    |> decode_response
+    [method: method, url: url, headers: headers, body: body]
+    |> Keyword.merge(options)
+    |> Req.request!()
+    |> then(& &1.body)
   end
 
   defp call_response(%{"error" => error, "reason" => reason}, state) do
@@ -265,10 +253,6 @@ defmodule Couchx.DbConnection do
       {"Content-Type", "application/json"},
       {"Authorization", "Basic #{credentials}"}
     ]
-  end
-
-  defp decode_response(%{body: response}) do
-    Jason.decode!(response)
   end
 
   defp create_admin_user(base_url, name, password, opts) do
