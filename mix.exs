@@ -4,7 +4,7 @@ defmodule Couchx.MixProject do
   def project do
     [
       app: :couchx,
-      version: "1.0.0",
+      version: "2.0.0",
       elixir: "~> 1.12",
       name: "Couchx",
       description: "Limited CouchDb Adapter for Ecto",
@@ -27,12 +27,11 @@ defmodule Couchx.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:earmark, "~> 1.4", only: :dev},
       {:ecto_sql, "~> 3.10"},
       {:ex_doc, "~> 0.11", only: :dev},
-      {:httpoison, "~> 2.0"},
       {:inflex, "~> 2.0.0"},
-      {:jason, "~>1.1"}
+      {:jason, "~> 1.1"},
+      {:req, "~> 0.6"}
     ]
   end
 
