@@ -202,9 +202,13 @@ defmodule Couchx.DbConnection do
     |> call_response(state)
   end
 
-  defp request(method, url, opts) when method in [:get, :delete] do
-    headers = opts[:headers] || []
-    options = opts[:options] || []
+  defp request(method, url, extras) when method in [:get, :delete] do
+    headers = extras[:headers] || []
+
+    options =
+      extras
+      |> Keyword.get(:options, [])
+      |> Keyword.drop([:method, :url, :headers])
 
     [method: method, url: url, headers: headers]
     |> Keyword.merge(options)
@@ -214,7 +218,11 @@ defmodule Couchx.DbConnection do
 
   defp request(method, url, body, extras) when method in [:post, :put] do
     headers = extras[:headers] || []
-    options = extras[:options] || []
+
+    options =
+      extras
+      |> Keyword.get(:options, [])
+      |> Keyword.drop([:method, :url, :headers, :body])
 
     [method: method, url: url, headers: headers, body: body]
     |> Keyword.merge(options)
