@@ -75,6 +75,31 @@ It adds a simple way to execute JS view queries with:
 
 Not ideal, so open to suggestions here.
 
+### Request timeouts
+
+All CouchDB requests go through a `GenServer` connection process whose
+`GenServer.call/3` timeout defaults to 30 seconds. Every query path accepts a
+`:call_timeout` option (with `:timeout` honored as a legacy fallback) to
+override it per call:
+
+```
+# Ecto queries
+Repo.get(User, doc_id, call_timeout: 60_000)
+Repo.all(query, call_timeout: 60_000)
+
+# View queries through the adapter
+adapter.execute(:view, meta, "design", "view_name", key: "dog", call_timeout: 60_000)
+
+# Direct connection calls
+Couchx.DbConnection.get(conn, "doc_id", nil, call_timeout: 60_000)
+Couchx.DbConnection.find(conn, query, call_timeout: 60_000)
+```
+
+The `:call_timeout` option only controls the GenServer call and is never
+forwarded to CouchDB as a query parameter. Note that `:timeout` also sets the
+HTTP connect timeout, and `:recv_timeout` (or `:receive_timeout`) sets the
+HTTP receive timeout of the underlying request.
+
 ### Mango support
 
 Currently support for mango is limited to do queries on single property, on previously created indexes.

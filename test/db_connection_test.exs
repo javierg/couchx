@@ -161,6 +161,59 @@ defmodule Couchx.DbConnectionTest do
     end
   end
 
+  describe "per-call :call_timeout through the adapter" do
+    defmodule SlowConnection do
+      use GenServer
+
+      def start_link(state), do: GenServer.start_link(__MODULE__, state)
+
+      def init(state), do: {:ok, state}
+
+      def handle_call(_request, _from, state) do
+        Process.sleep(300)
+        {:reply, {:ok, %{"rows" => []}}, state}
+      end
+    end
+
+    defmodule SlowDoc do
+      defstruct [:_id, :_rev, :name]
+    end
+
+    setup do
+      slow_conn = start_supervised!({SlowConnection, []})
+      {:ok, meta: %{pid: slow_conn}}
+    end
+
+    test "execute(:view, ...) forwards :call_timeout to the connection call", %{meta: meta} do
+      assert {:timeout, _} =
+               catch_exit(
+                 Couchx.Adapter.execute(:view, meta, "demo", "by_id",
+                   key: "doc",
+                   call_timeout: 50
+                 )
+               )
+
+      assert [] =
+               Couchx.Adapter.execute(:view, meta, "demo", "by_id",
+                 key: "doc",
+                 call_timeout: 1_000
+               )
+    end
+
+    test "Ecto query execute/5 forwards :call_timeout to the connection call", %{meta: meta} do
+      query_meta = %{select: %{}, sources: {{"slow_doc", SlowDoc, nil}}}
+      query_cache = {:nocache, {1, [keys: [%{_id: "doc1"}]]}}
+
+      assert {:timeout, _} =
+               catch_exit(
+                 Couchx.Adapter.execute(meta, query_meta, query_cache, [], call_timeout: 50)
+               )
+
+      assert {0, []} =
+               Couchx.Adapter.execute(meta, query_meta, query_cache, [], call_timeout: 1_000)
+    end
+  end
+
   test "adapter starts Req dependencies using the Ecto callback contract" do
     assert {:ok, applications} = Couchx.Adapter.ensure_all_started([], :temporary)
     assert is_list(applications)
