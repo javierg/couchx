@@ -136,6 +136,10 @@ defmodule Couchx.Adapter do
 
   @encodable_keys ~w[key keys startkey endkey start_key end_key]a
 
+  # Options controlling the GenServer.call/3 timeout on Couchx.DbConnection,
+  # forwarded separately so they never leak into CouchDB query parameters.
+  @call_opt_keys ~w[call_timeout timeout]a
+
   @impl true
   defmacro __before_compile__(_env), do: :ok
 
@@ -198,10 +202,11 @@ defmodule Couchx.Adapter do
   end
 
   @impl true
-  def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, _opts) do
+  def insert_all(meta, _repo, _fields, data, _on_conflict, schema, _returning, opts) do
     docs = Enum.map(data, &Enum.into(&1, %{}))
+    call_opts = Keyword.take(opts || [], @call_opt_keys)
 
-    {:ok, res} = Couchx.DbConnection.bulk_docs(meta[:pid], docs)
+    {:ok, res} = Couchx.DbConnection.bulk_docs(meta[:pid], docs, call_opts)
     {:ok, Enum.map(res, &parse_bulk_response(&1, data, schema))}
   end
 
@@ -224,8 +229,10 @@ defmodule Couchx.Adapter do
   end
 
   def execute(:view, meta, design, view, query_opts) do
-    opts = prepare_view_options(query_opts)
-    Couchx.DbConnection.get(meta[:pid], "_design/#{design}/_view/#{view}", opts)
+    {call_opts, view_opts} = Keyword.split(query_opts, @call_opt_keys)
+    opts = prepare_view_options(view_opts)
+
+    Couchx.DbConnection.get(meta[:pid], "_design/#{design}/_view/#{view}", opts, call_opts)
     |> parse_view_response(opts[:include_docs], query_opts[:module])
   end
 
@@ -241,10 +248,11 @@ defmodule Couchx.Adapter do
   end
 
   @impl true
-  def execute(meta, query_meta, query_cache, params, _opts) do
+  def execute(meta, query_meta, query_cache, params, opts) do
     {_, {_, query}}        = query_cache
     %{select: select}      = query_meta
     keys                   = fetch_query_keys(query_cache)
+    call_opts              = Keyword.take(opts || [], @call_opt_keys)
     query_options          = query[:options] || %{}
     {all_fields, module}   = fetch_fields(query_meta.sources)
     namespace              = build_namespace(module)
@@ -264,7 +272,7 @@ defmodule Couchx.Adapter do
       %{}
     end
 
-    do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options))
+    do_query(meta[:pid], keys, namespace, params, Map.merge(query, query_options), call_opts)
     |> QueryHandler.query_results(fields, fields_meta)
   end
 
@@ -308,48 +316,48 @@ defmodule Couchx.Adapter do
     {fields, module}
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids, select) when is_list(ids) do
-    do_query(server, [%{_id: ids}], namespace, [], select)
+  defp do_query(server, [%{_id: {:^, [], [0, _total]}}], namespace, ids, select, call_opts) when is_list(ids) do
+    do_query(server, [%{_id: ids}], namespace, [], select, call_opts)
   end
 
-  defp do_query(server, [%{_id: ids}], namespace, [], _select) when is_list(ids) do
+  defp do_query(server, [%{_id: ids}], namespace, [], _select, call_opts) when is_list(ids) do
     doc_ids = Enum.map(ids, &namespace_id(namespace, &1))
               |> Enum.map(&URI.decode_www_form/1)
 
-    Couchx.DbConnection.all_docs(server, doc_ids, include_docs: true)
+    Couchx.DbConnection.all_docs(server, doc_ids, [include_docs: true] ++ call_opts)
     |> sanitize_collection
   end
 
-  defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _], select) do
-    do_query(server, [%{_id: id}], namespace, [], select)
+  defp do_query(server, [%{"$eq" => [%{_id: :empty}, :primary_key]}], namespace, [id | _], select, call_opts) do
+    do_query(server, [%{_id: id}], namespace, [], select, call_opts)
   end
 
-  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _], _select) do
-    do_query(server, [%{_id: id}], namespace, [], [])
+  defp do_query(server, [%{_id: {:^, [], [0]}}], namespace, [id | _], _select, call_opts) do
+    do_query(server, [%{_id: id}], namespace, [], [], call_opts)
   end
 
-  defp do_query(server, [%{_id: id}], namespace, [], []) do
-    Couchx.DbConnection.get(server, namespace_id(namespace, id))
+  defp do_query(server, [%{_id: id}], namespace, [], [], call_opts) do
+    Couchx.DbConnection.get(server, namespace_id(namespace, id), nil, call_opts)
   end
 
-  defp do_query(server, [%{_id: id}], namespace, [], select) when is_list(select) do
+  defp do_query(server, [%{_id: id}], namespace, [], select, call_opts) when is_list(select) do
     namespaced_id = unencoded_namespace_id(namespace, id)
     query = select_query(%{_id: namespaced_id}, select)
 
-    Couchx.DbConnection.find(server, query)
+    Couchx.DbConnection.find(server, query, call_opts)
   end
 
-  defp do_query(server, [%{_id: id}], namespace, [], _) do
-    Couchx.DbConnection.get(server, namespace_id(namespace, id))
+  defp do_query(server, [%{_id: id}], namespace, [], _, call_opts) do
+    Couchx.DbConnection.get(server, namespace_id(namespace, id), nil, call_opts)
   end
 
-  defp do_query(server, [:delete], namespace, [], _select) do
-    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", [limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")])
+  defp do_query(server, [:delete], namespace, [], _select, call_opts) do
+    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", [limit: 100, include_docs: true, startkey: Jason.encode!(namespace), endkey: Jason.encode!("#{namespace}/{}")], call_opts)
     docs = Enum.map(rows, fn(%{"doc" => doc})-> %{_id: doc["_id"], _rev: doc["_rev"], _deleted: true} end)
-    Couchx.DbConnection.bulk_docs(server, docs)
+    Couchx.DbConnection.bulk_docs(server, docs, call_opts)
   end
 
-  defp do_query(server, [], namespace, [], query_options) do
+  defp do_query(server, [], namespace, [], query_options, call_opts) do
     limit = query_options[:limit] || 100
     orders= query_options[:sort]
 
@@ -382,15 +390,15 @@ defmodule Couchx.Adapter do
       opts
     end
 
-    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", opts)
+    {:ok, %{"rows" => rows}} = Couchx.DbConnection.get(server, "_all_docs", opts, call_opts)
     Enum.map(rows, &Map.get(&1, "doc"))
   end
 
-  defp do_query(server, properties, namespace, values, query_options) when is_list(properties) do
+  defp do_query(server, properties, namespace, values, query_options, call_opts) when is_list(properties) do
     selector = extract_properties(namespace, properties, values)
     query_options = extract_options_properties(namespace, query_options, values)
     query = select_query(selector, query_options)
-    Couchx.DbConnection.find(server, query)
+    Couchx.DbConnection.find(server, query, call_opts)
   end
 
   defp extract_options_properties(namespace, query_options, values) do
