@@ -21,6 +21,19 @@ defmodule Couchx.Adapter do
     port: 5984
   ```
 
+  ## Pool
+
+  Each repo runs its own HTTP connection pool (`Couchx.Pool`, backed by Finch).
+  Requests run in the calling process. `pool_size` (default 10) is the number
+  of connections to CouchDB; when all are in use, callers wait for one for up
+  to `:pool_timeout` ms (default 5_000).
+
+  ```
+    config :my_app, MyApp.Repo, pool_size: 20
+  ```
+
+  See `Couchx.Pool` for the other pool options.
+
   ## Usage
 
   Couchx supports 1 main repo and many dynamic supervised repos.
@@ -37,7 +50,8 @@ defmodule Couchx.Adapter do
     end
   ```
 
-  The Restry name is tied up to the code so it must be called `CouchxRegistry`.
+  The Registry name is tied up to the code so it must be called `CouchxRegistry`.
+  Each repo's connection pool is registered there under the repo `:name`.
 
   The main Repo is configured as any other Ecto Repo, so you can start it in the application just adding it to the children list.
 
@@ -136,9 +150,9 @@ defmodule Couchx.Adapter do
 
   @encodable_keys ~w[key keys startkey endkey start_key end_key]a
 
-  # Options controlling the GenServer.call/3 timeout on Couchx.DbConnection,
-  # forwarded separately so they never leak into CouchDB query parameters.
-  @call_opt_keys ~w[call_timeout timeout]a
+  # Request timeout options for Couchx.DbConnection, forwarded separately so
+  # they never leak into CouchDB query parameters.
+  @call_opt_keys ~w[call_timeout timeout pool_timeout receive_timeout recv_timeout]a
 
   @impl true
   defmacro __before_compile__(_env), do: :ok
@@ -156,7 +170,9 @@ defmodule Couchx.Adapter do
 
   @impl true
   def ensure_all_started(_repo, type) do
-    Application.ensure_all_started(:req, type)
+    # :couchx runs Couchx.Pool.Registry, which every pool needs. Starting it
+    # also starts :req and the rest of its dependencies.
+    Application.ensure_all_started(:couchx, type)
   end
 
   @impl true
@@ -534,23 +550,7 @@ defmodule Couchx.Adapter do
 
   defp put_conn_id(config), do: config ++ [id: config[:name]]
 
-  defp couchdb_supervisor_spec(config) do
-    sup_id = config[:id] || CouchxAdapter
-
-    %{
-      id: sup_id,
-      start: {
-        Couchx.DbConnection,
-        :start_link,
-        [
-          config,
-        ]
-      },
-      restart: :permanent,
-      shutdown: :infinity,
-      type: :supervisor
-    }
-  end
+  defp couchdb_supervisor_spec(config), do: Couchx.Pool.child_spec(config)
 
   defp fields_meta({_, {_, _, _, fields_meta}}), do: fields_meta
   defp fields_meta(_), do: nil

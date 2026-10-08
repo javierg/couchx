@@ -8,15 +8,16 @@ defmodule Couchx.DbConnectionTest do
 
     name = :"couchx_test_#{System.unique_integer([:positive])}"
 
-    {:ok, pid} =
-      Couchx.DbConnection.start_link(
-        name: name,
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: bypass.port,
-        database: "",
-        username: "user",
-        password: "pass"
+    pid =
+      start_supervised!(
+        {Couchx.Pool,
+         name: name,
+         protocol: "http",
+         hostname: "127.0.0.1",
+         port: bypass.port,
+         database: "",
+         username: "user",
+         password: "pass"}
       )
 
     {:ok, bypass: bypass, conn: pid}
@@ -162,26 +163,27 @@ defmodule Couchx.DbConnectionTest do
   end
 
   describe "per-call :call_timeout through the adapter" do
-    defmodule SlowConnection do
-      use GenServer
-
-      def start_link(state), do: GenServer.start_link(__MODULE__, state)
-
-      def init(state), do: {:ok, state}
-
-      def handle_call(_request, _from, state) do
-        Process.sleep(300)
-        {:reply, {:ok, %{"rows" => []}}, state}
-      end
-    end
-
     defmodule SlowDoc do
       defstruct [:_id, :_rev, :name]
     end
 
-    setup do
-      slow_conn = start_supervised!({SlowConnection, []})
-      {:ok, meta: %{pid: slow_conn}}
+    # Bypass kills a handler when the client hangs up after a timeout; trapping
+    # exits lets it finish so the test process isn't taken down with it.
+    defp slow_json(conn, body) do
+      Process.flag(:trap_exit, true)
+      Process.sleep(300)
+
+      conn
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.resp(200, body)
+    end
+
+    setup %{bypass: bypass, conn: conn} do
+      Bypass.stub(bypass, "GET", "/_design/demo/_view/by_id", &slow_json(&1, ~s({"rows":[]})))
+
+      Bypass.stub(bypass, "GET", "/slow_doc%2Fdoc1", &slow_json(&1, ~s({"rows":[]})))
+
+      {:ok, meta: %{pid: conn}}
     end
 
     test "execute(:view, ...) forwards :call_timeout to the connection call", %{meta: meta} do

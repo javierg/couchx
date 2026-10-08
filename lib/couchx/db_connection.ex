@@ -1,7 +1,22 @@
 defmodule Couchx.DbConnection do
-  use GenServer, restart: :transient
+  @moduledoc """
+  CouchDB request functions.
 
-  require Logger
+  `server` is a `Couchx.Pool` (pid, name or `{:via, ...}` tuple), usually the
+  repo `:pid`. Requests run in the caller's process through Req, using the
+  pool's Finch connections. No GenServer sits in between.
+
+  Timeouts per call:
+
+    * `:call_timeout` (or legacy `:timeout`) - how long to wait for response
+      data from CouchDB, default 30_000 ms. It's applied as Req's
+      `:receive_timeout`. Exits with `{:timeout, _}` when exceeded.
+    * `:recv_timeout` / `:receive_timeout` - overrides the above directly.
+    * `:pool_timeout` - time to wait for a free connection, default 5_000 ms.
+      Exits with `{:timeout, _}` when exceeded.
+
+  Requests are not retried unless you pass Req's `:retry` option.
+  """
 
   @default_call_timeout 30_000
 
@@ -29,250 +44,193 @@ defmodule Couchx.DbConnection do
     :update_seq
   ]
 
-  def start_link(args) do
-    config = build_config(args)
-    name = process_name(args[:name])
+  # Req options a caller may pass through. Anything else is dropped, so
+  # CouchDB options never reach Req and a caller cannot override `:finch`.
+  @req_passthrough [
+    :receive_timeout,
+    :pool_timeout,
+    :retry,
+    :max_retries,
+    :retry_delay,
+    :retry_log_level
+  ]
 
-    GenServer.start_link(__MODULE__, config, name: name)
-  end
-
-  def init(args) do
-    {:ok, args}
-  end
-
-  def terminate(reason, _state) when reason in [:normal, :shutdown] do
-    Logger.info("Couchx database connection stopped", reason: inspect(reason))
-  end
-
-  def terminate({:shutdown, _detail} = reason, _state) do
-    Logger.info("Couchx database connection stopped", reason: inspect(reason))
-  end
-
-  def terminate(reason, _state) do
-    Logger.warning("Couchx database connection terminated", reason: inspect(reason))
-  end
-
-  def info(server), do: GenServer.call(server, :info, @default_call_timeout)
+  def info(server), do: run(server, :info, [])
 
   def insert(server, resource, body, options \\ []) do
-    GenServer.call(server, {:insert, resource, body, options}, call_timeout(options))
+    run(server, {:insert, resource, body, options}, options)
   end
 
   def bulk_docs(server, docs, options \\ []) do
-    GenServer.call(server, {:bulk_docs, docs, options}, call_timeout(options))
+    run(server, {:bulk_docs, docs, options}, options)
   end
 
   def get(server, resource, query \\ nil, options \\ []) do
-    GenServer.call(server, {:get, resource, query, options}, call_timeout(options))
+    run(server, {:get, resource, query, options}, options)
   end
 
   def all_docs(server, keys, options \\ []) do
-    GenServer.call(server, {:all_docs, keys, options}, call_timeout(options))
+    run(server, {:all_docs, keys, options}, options)
   end
 
-  def delete(server, resource, rev) do
-    GenServer.call(server, {:delete, resource, rev}, @default_call_timeout)
-  end
+  def delete(server, resource, rev), do: run(server, {:delete, resource, rev}, [])
 
   def delete(server, :index, name, id) do
-    id = if id, do: id, else: name
-    GenServer.call(server, {:delete_index, name, id}, @default_call_timeout)
+    run(server, {:delete_index, name, id || name}, [])
   end
 
-  def create_db(server, name) do
-    GenServer.call(server, {:create_db, name}, @default_call_timeout)
-  end
+  def create_db(server, name), do: run(server, {:create_db, name}, [])
 
-  def delete_db(server, name) do
-    GenServer.call(server, {:delete_db, name}, @default_call_timeout)
-  end
+  def delete_db(server, name), do: run(server, {:delete_db, name}, [])
 
   def create_admin(server, name, password) do
-    GenServer.call(server, {:create_admin, name, password}, @default_call_timeout)
+    run(server, {:create_admin, name, password}, [])
   end
 
-  def delete_admin(server, name) do
-    GenServer.call(server, {:delete_admin, name}, @default_call_timeout)
-  end
+  def delete_admin(server, name), do: run(server, {:delete_admin, name}, [])
 
   def find(server, query, options \\ []) do
-    GenServer.call(server, {:find, query, options}, call_timeout(options))
+    run(server, {:find, query, options}, options)
   end
 
-  def index(server, doc) do
-    GenServer.call(server, {:index, doc}, @default_call_timeout)
-  end
+  def index(server, doc), do: run(server, {:index, doc}, [])
 
   def raw_request(server, method, path, options \\ []) do
-    GenServer.call(server, {:raw_request, method, path, options}, call_timeout(options))
+    run(server, {:raw_request, method, path, options}, options)
   end
 
-  def handle_call({:index, doc}, _from, state) do
-    headers = state[:base_headers]
-    url = join_url(state[:base_url], "_index")
-    body = Jason.encode!(doc)
+  defp run(server, message, options) do
+    conn = Couchx.Pool.lookup(server)
+    timeout = call_timeout(options)
+    state = Map.put(conn, :timeout, timeout)
 
-    request(:post, url, body, headers: headers, options: [])
-    |> call_response(state)
+    try do
+      message
+      |> perform(state)
+      |> call_response()
+    rescue
+      error ->
+        if timeout_error?(error),
+          do: exit({:timeout, {__MODULE__, :run, [server, message, timeout]}}),
+          else: reraise(error, __STACKTRACE__)
+    end
   end
 
-  def handle_call({:delete_admin, name}, _from, state) do
-    url = join_url(state[:base_url], "_users/org.couchdb.user:#{name}")
-    opts = [headers: state[:base_headers], options: state[:options]]
-    user_doc = request(:get, url, opts)
+  defp timeout_error?(%Req.TransportError{reason: :timeout}), do: true
 
-    request(:delete, "#{url}?rev=#{user_doc["_rev"]}", opts)
-    |> call_response(state)
+  # Finch re-raises NimblePool's checkout timeout as a plain RuntimeError, so
+  # the message is the only thing to match on. Kept loose (substring) so minor
+  # rewording upstream doesn't break it; the pool_timeout test guards it.
+  defp timeout_error?(%RuntimeError{message: message}),
+    do: String.contains?(message, "unable to provide a connection")
+
+  defp timeout_error?(_), do: false
+
+  defp perform({:index, doc}, state) do
+    request(:post, url(state, "_index"), Jason.encode!(doc), state, [])
   end
 
-  def handle_call({:create_admin, name, password}, _from, state) do
-    opts = [headers: state[:base_headers], options: state[:options]]
+  defp perform({:delete_admin, name}, state) do
+    url = url(state, "_users/org.couchdb.user:#{name}")
+    user_doc = request(:get, url, state, [])
 
-    create_role(state[:base_url], name, name, opts)
-
-    create_admin_user(state[:base_url], name, password, opts)
-    |> call_response(state)
-    |> call_response(state)
+    request(:delete, "#{url}?rev=#{user_doc["_rev"]}", state, [])
   end
 
-  def handle_call({:create_db, name}, _from, state) do
-    url = join_url(state[:base_url], name)
-    opts = [headers: state[:base_headers], options: state[:options]]
-
-    request(:put, url, [], opts)
-    |> call_response(state)
+  defp perform({:create_admin, name, password}, state) do
+    create_role(state, name, name)
+    create_admin_user(state, name, password)
   end
 
-  def handle_call({:delete, doc_id, rev}, _from, state) do
-    url = join_url(state[:base_url], "#{doc_id}?rev=#{rev}")
-    opts = [headers: state[:base_headers], options: state[:options]]
-
-    request(:delete, url, opts)
-    |> call_response(state)
+  defp perform({:create_db, name}, state) do
+    request(:put, url(state, name), [], state, [])
   end
 
-  def handle_call({:delete_db, name}, _from, state) do
-    url = join_url(state[:base_url], name)
-    opts = [headers: state[:base_headers], options: state[:options]]
-
-    request(:delete, url, opts)
-    |> call_response(state)
+  defp perform({:delete, doc_id, rev}, state) do
+    request(:delete, url(state, "#{doc_id}?rev=#{rev}"), state, [])
   end
 
-  def handle_call(:info, _from, state) do
-    request(:get, state[:base_url], headers: state[:base_headers], options: state[:options])
-    |> call_response(state)
+  defp perform({:delete_db, name}, state) do
+    request(:delete, url(state, name), state, [])
   end
 
-  def handle_call({:all_docs, keys, options}, _from, state) do
-    headers = state[:base_headers]
+  defp perform(:info, state) do
+    request(:get, state.base_url, state, [])
+  end
+
+  defp perform({:all_docs, keys, options}, state) do
     with_docs = options[:include_docs] || false
-    url = join_url(state[:base_url], "_all_docs?include_docs=#{with_docs}")
-    body = Jason.encode!(%{keys: keys})
+    url = url(state, "_all_docs?include_docs=#{with_docs}")
 
-    request(:post, url, body, headers: headers, options: [])
-    |> call_response(state)
+    request(:post, url, Jason.encode!(%{keys: keys}), state, [])
   end
 
-  def handle_call({:bulk_docs, docs, options}, _from, state) do
-    headers = state[:base_headers]
-    url = join_url(state[:base_url], "_bulk_docs")
-    body = Jason.encode!(%{docs: docs})
-
-    request(:post, url, body, headers: headers, options: options)
-    |> call_response(state)
+  defp perform({:bulk_docs, docs, options}, state) do
+    request(:post, url(state, "_bulk_docs"), Jason.encode!(%{docs: docs}), state, options)
   end
 
-  def handle_call({:insert, resource, body, options}, _from, state) do
-    headers = state[:base_headers]
-    url = join_url(state[:base_url], resource)
-
-    request(:put, url, body, headers: headers, options: options)
-    |> call_response(state)
+  defp perform({:insert, resource, body, options}, state) do
+    request(:put, url(state, resource), body, state, options)
   end
 
-  def handle_call({:get, resource, query, options}, _from, state) do
-    headers = state[:base_headers]
+  defp perform({:get, resource, query, options}, state) do
     {path, query} = split_resource_query(resource, query)
     query_str = build_query_str(query)
-    url = join_url(state[:base_url], "#{path}#{query_str}")
 
-    request(:get, url, headers: headers, options: options)
-    |> call_response(state)
+    request(:get, url(state, "#{path}#{query_str}"), state, options)
   end
 
-  def handle_call({:raw_request, method, path, options}, _from, state) do
+  defp perform({:raw_request, method, path, options}, state) do
     {path, embedded_query} = split_path_and_query(path)
     query = merge_query(embedded_query, options)
-    query_str = build_query_str(query)
-    url = join_url(state[:base_url], "#{path}#{query_str}")
-    req_options = state[:options] ++ options
+    url = url(state, "#{path}#{build_query_str(query)}")
 
     case method do
-      :get ->
-        request(method, url, headers: state[:base_headers], options: req_options)
-
-      :delete ->
-        request(:delete, url, headers: state[:base_headers], options: [])
-
-      _ ->
-        body = Jason.encode!(options[:body] || %{})
-        request(method, url, body, headers: state[:base_headers], options: req_options)
+      :get -> request(:get, url, state, options)
+      :delete -> request(:delete, url, state, [])
+      _ -> request(method, url, Jason.encode!(options[:body] || %{}), state, options)
     end
-    |> call_response(state)
   end
 
-  def handle_call({:find, query, options}, _from, state) do
-    headers = state[:base_headers]
+  defp perform({:find, query, options}, state) do
     query_str = build_query_str(options[:query_str])
-    url = join_url(state[:base_url], "_find#{query_str}")
-    body = Jason.encode!(query)
 
-    request(:post, url, body, headers: headers, options: options)
-    |> call_response(state)
+    request(:post, url(state, "_find#{query_str}"), Jason.encode!(query), state, options)
   end
 
-  def handle_call({:delete_index, name, id}, _from, state) do
-    headers = state[:base_headers]
-    url = join_url(state[:base_url], "_index/_design/#{id}/json/#{name}")
-
-    request(:delete, url, headers: headers, options: [])
-    |> call_response(state)
+  defp perform({:delete_index, name, id}, state) do
+    request(:delete, url(state, "_index/_design/#{id}/json/#{name}"), state, [])
   end
 
-  defp request(method, url, extras) when method in [:get, :delete] do
-    headers = extras[:headers] || []
+  defp request(method, url, state, options) when method in [:get, :delete] do
+    send_request([method: method, url: url], state, options)
+  end
 
-    options =
-      extras
-      |> Keyword.get(:options, [])
-      |> prepare_req_options()
+  defp request(method, url, body, state, options) when method in [:post, :put] do
+    send_request([method: method, url: url, body: body], state, options)
+  end
 
-    [method: method, url: url, headers: headers]
-    |> Keyword.merge(options)
+  defp send_request(base, state, options) do
+    {pool_timeout, req_options} = Keyword.pop(prepare_req_options(options), :pool_timeout)
+
+    base
+    |> Keyword.merge(headers: state.headers, receive_timeout: state.timeout, retry: false)
+    |> Keyword.put(:finch, finch_options(state.finch, pool_timeout))
+    |> Keyword.merge(req_options)
     |> Req.request!()
     |> then(& &1.body)
   end
 
-  defp request(method, url, body, extras) when method in [:post, :put] do
-    headers = extras[:headers] || []
+  defp finch_options(finch, nil), do: [name: finch]
+  defp finch_options(finch, pool_timeout), do: [name: finch, pool_timeout: pool_timeout]
 
-    options =
-      extras
-      |> Keyword.get(:options, [])
-      |> prepare_req_options()
-
-    [method: method, url: url, headers: headers, body: body]
-    |> Keyword.merge(options)
-    |> Req.request!()
-    |> then(& &1.body)
-  end
+  defp url(state, path), do: join_url(state.base_url, path)
 
   defp prepare_req_options(options) when is_list(options) do
     options
     |> maybe_map_recv_timeout()
-    |> maybe_map_connect_timeout()
     |> Keyword.drop(@non_req_options)
+    |> Keyword.take(@req_passthrough)
   end
 
   defp prepare_req_options(_), do: []
@@ -284,33 +242,31 @@ defmodule Couchx.DbConnection do
     end
   end
 
-  defp maybe_map_connect_timeout(options) do
-    case Keyword.get(options, :timeout) do
-      nil ->
-        options
-
-      timeout ->
-        Keyword.update(options, :connect_options, [timeout: timeout], fn
-          connect_options when is_list(connect_options) ->
-            Keyword.put_new(connect_options, :timeout, timeout)
-
-          connect_options ->
-            connect_options
-        end)
-    end
-  end
-
   defp call_timeout(options) when is_list(options) do
     options[:call_timeout] || options[:timeout] || @default_call_timeout
   end
 
   defp call_timeout(_options), do: @default_call_timeout
 
-  defp call_response(%{"error" => error, "reason" => reason}, state) do
-    {:reply, {:error, "#{error} :: #{reason}"}, state}
+  defp call_response(%{"error" => error, "reason" => reason}) do
+    {:error, "#{error} :: #{reason}"}
   end
 
-  defp call_response(response, state), do: {:reply, {:ok, response}, state}
+  defp call_response(response), do: {:ok, response}
+
+  defp create_admin_user(state, name, password) do
+    body = name |> user_doc(password) |> Jason.encode!()
+    request(:put, url(state, "_users/org.couchdb.user:#{name}"), body, state, [])
+  end
+
+  defp create_role(state, db_name, name) do
+    roles = %{members: %{names: [], roles: []}, admins: %{names: [name], roles: []}}
+    request(:put, url(state, "#{db_name}/_security"), Jason.encode!(roles), state, [])
+  end
+
+  defp user_doc(name, password) do
+    %{name: name, password: password, roles: [], type: "user"}
+  end
 
   defp build_query_str(nil), do: ""
   defp build_query_str([]), do: ""
@@ -418,62 +374,5 @@ defmodule Couchx.DbConnection do
     base = String.trim_trailing(to_string(base), "/")
     path = to_string(path) |> String.trim_leading("/")
     "#{base}/#{path}"
-  end
-
-  defp build_config(args) do
-    %{
-      base_url: base_url(args),
-      base_headers: fetch_headers(args),
-      options: []
-    }
-  end
-
-  defp base_url(args) do
-    database = args[:database] || ""
-
-    "#{args[:protocol]}://#{args[:hostname]}:#{args[:port]}"
-    |> join_url(database)
-  end
-
-  defp fetch_headers(config) do
-    credentials =
-      "#{config[:username]}:#{config[:password]}"
-      |> Base.encode64()
-
-    [
-      {"Content-Type", "application/json"},
-      {"Authorization", "Basic #{credentials}"}
-    ]
-  end
-
-  defp create_admin_user(base_url, name, password, opts) do
-    url = join_url(base_url, "_users/org.couchdb.user:#{name}")
-
-    body =
-      name
-      |> user_doc(password)
-      |> Jason.encode!()
-
-    request(:put, url, body, opts)
-  end
-
-  defp create_role(base_url, db_name, name, opts) do
-    roles = %{members: %{names: [], roles: []}, admins: %{names: [name], roles: []}}
-    request(:put, join_url(base_url, "#{db_name}/_security"), Jason.encode!(roles), opts)
-  end
-
-  defp user_doc(name, password) do
-    %{
-      name: name,
-      password: password,
-      roles: [],
-      type: "user"
-    }
-  end
-
-  defp process_name(nil), do: __MODULE__
-
-  defp process_name(name) do
-    {:via, Registry, {CouchxRegistry, name}}
   end
 end
