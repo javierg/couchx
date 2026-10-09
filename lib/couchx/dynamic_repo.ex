@@ -44,6 +44,27 @@ defmodule Couchx.DynamicRepo do
   defp checkout(module, name, opts) do
     pid = ensure_started(module, name, opts)
 
+    with :ok <- await_ready(pid) do
+      claim(module, name, opts, pid)
+    else
+      :down -> checkout(module, name, opts)
+    end
+  end
+
+  defp await_ready(pid) do
+    Ecto.Repo.Registry.lookup(pid)
+    :ok
+  rescue
+    ArgumentError ->
+      try do
+        Supervisor.count_children(pid)
+        :ok
+      catch
+        :exit, _ -> :down
+      end
+  end
+
+  defp claim(module, name, opts, pid) do
     case Couchx.DynamicRepo.Janitor.checkout(pid) do
       :ok ->
         if Process.alive?(pid) do

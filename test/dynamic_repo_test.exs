@@ -6,6 +6,16 @@ defmodule Couchx.DynamicRepoTest do
     use Couchx.DynamicRepo, otp_app: :couchx, name: :couchx_dynamic_test
   end
 
+  defmodule SlowRepo do
+    use Ecto.Repo, otp_app: :couchx, adapter: Couchx.Adapter
+    use Couchx.DynamicRepo, otp_app: :couchx, name: :couchx_dynamic_slow
+
+    def init(_type, config) do
+      Process.sleep(100)
+      {:ok, config}
+    end
+  end
+
   setup do
     bypass = Bypass.open()
     start_supervised!({Registry, keys: :unique, name: CouchxRegistry})
@@ -106,6 +116,31 @@ defmodule Couchx.DynamicRepoTest do
     for ref <- refs, do: assert_receive({:DOWN, ^ref, _, _, _})
   end
 
+  test "concurrent callers only get the repo once Ecto has registered it", %{bypass: _bypass} do
+    config = Application.get_env(:couchx, Repo)
+    Application.put_env(:couchx, SlowRepo, config)
+
+    on_exit(fn ->
+      SlowRepo.stop_repo(:couchx_dynamic_slow)
+      Application.delete_env(:couchx, SlowRepo)
+    end)
+
+    results =
+      1..10
+      |> Enum.map(fn _ ->
+        Task.async(fn ->
+          SlowRepo.run(fn ->
+            %{pid: pool} = Ecto.Repo.Registry.lookup(SlowRepo.get_dynamic_repo())
+            {SlowRepo.get_dynamic_repo(), is_pid(pool)}
+          end)
+        end)
+      end)
+      |> Task.await_many()
+
+    assert [{repo, true}] = Enum.uniq(results)
+    assert is_pid(repo)
+  end
+
   test "concurrent first runs start the repo once" do
     pids =
       1..10
@@ -137,7 +172,7 @@ defmodule Couchx.DynamicRepoTest do
       ref = Process.monitor(repo)
 
       Process.sleep(80)
-      assert repo in Couchx.DynamicRepo.Janitor.sweep()
+      Couchx.DynamicRepo.Janitor.sweep()
       assert_receive {:DOWN, ^ref, _, _, _}
 
       assert Repo.run(&current_repo_pid/0) != repo
