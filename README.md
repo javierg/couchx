@@ -77,28 +77,36 @@ Not ideal, so open to suggestions here.
 
 ### Request timeouts
 
-All CouchDB requests go through a `GenServer` connection process whose
-`GenServer.call/3` timeout defaults to 30 seconds. Every query path accepts a
-`:call_timeout` option (with `:timeout` honored as a legacy fallback) to
-override it per call:
+Each repo has its own HTTP connection pool (`pool_size`, default 10).
+Requests run in the calling process; there is no connection GenServer in
+between. Every query path accepts these per-call options:
+
+* `:call_timeout` (with `:timeout` honored as a legacy fallback) - deadline
+  for the whole response from CouchDB, default 30 seconds.
+* `:pool_timeout` - how long to wait for a free connection when all
+  `pool_size` connections are in use, default 5 seconds.
+* `:recv_timeout` / `:receive_timeout` - longest gap allowed between two
+  chunks of response data; defaults to `:call_timeout`.
+
+Exceeding either timeout exits with `{:timeout, _}`, as before.
 
 ```
 # Ecto queries
 Repo.get(User, doc_id, call_timeout: 60_000)
-Repo.all(query, call_timeout: 60_000)
+Repo.all(query, call_timeout: 60_000, pool_timeout: 10_000)
 
 # View queries through the adapter
 adapter.execute(:view, meta, "design", "view_name", key: "dog", call_timeout: 60_000)
 
-# Direct connection calls
+# Direct connection calls (conn is the repo pid)
 Couchx.DbConnection.get(conn, "doc_id", nil, call_timeout: 60_000)
 Couchx.DbConnection.find(conn, query, call_timeout: 60_000)
 ```
 
-The `:call_timeout` option only controls the GenServer call and is never
-forwarded to CouchDB as a query parameter. Note that `:timeout` also sets the
-HTTP connect timeout, and `:recv_timeout` (or `:receive_timeout`) sets the
-HTTP receive timeout of the underlying request.
+These options are never forwarded to CouchDB as query parameters. Requests are
+not retried automatically; pass Req's `:retry` option to opt in. The TCP
+connect timeout is a pool setting, `connect_timeout` in the repo config
+(default 30 seconds).
 
 ### Mango support
 

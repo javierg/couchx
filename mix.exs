@@ -4,8 +4,8 @@ defmodule Couchx.MixProject do
   def project do
     [
       app: :couchx,
-      version: "2.0.3",
-      elixir: "~> 1.12",
+      version: "2.1.0",
+      elixir: "~> 1.15",
       name: "Couchx",
       description: "Limited CouchDb Adapter for Ecto",
       start_permanent: Mix.env() == :prod,
@@ -17,7 +17,9 @@ defmodule Couchx.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Couchx.Application, []},
       extra_applications: [
+        :crypto,
         :ecto,
         :logger
       ]
@@ -30,9 +32,10 @@ defmodule Couchx.MixProject do
       {:bypass, "~> 2.1", only: :test},
       {:ecto_sql, "~> 3.10"},
       {:ex_doc, "~> 0.11", only: :dev},
+      {:finch, "~> 0.18"},
       {:inflex, "~> 2.0.0"},
       {:jason, "~> 1.1"},
-      {:req, "~> 0.6"}
+      {:req, "~> 0.7"}
     ]
   end
 
