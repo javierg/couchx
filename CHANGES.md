@@ -24,9 +24,19 @@
   pid, name or `{:via, ...}` tuple (normally the repo `:pid`).
 - The pool, not a connection process, is registered in `CouchxRegistry` under
   the repo `:name`.
-- `:call_timeout` is now the HTTP receive timeout rather than a
+- `:call_timeout` is now an HTTP deadline for the whole response rather than a
   `GenServer.call/3` timeout. Waiting for a free connection has its own
   `:pool_timeout` (default 5_000). Both still exit with `{:timeout, _}`.
+- Dynamic repos stay running after `run/1` / `with_dynamic_repo/3` instead of
+  being stopped after every callback, so their connections are reused. They're
+  supervised by `Couchx.DynamicRepoSupervisor`. A repo is reused only for the
+  same name and options (credentials, database, ...); different options start
+  a separate repo. `stop_repo/1` stops every repo with a name, `stop_repo/2`
+  only the one with those options. `get_dynamic_repo/0` inside the callback
+  now returns a pid, not the name atom.
+- Dynamic repos with no running callbacks are stopped after being idle for
+  `config :couchx, dynamic_repo_idle_timeout: ms` (default 5 minutes;
+  `:infinity` disables it). The next call starts a fresh one.
 - `:timeout` no longer sets the TCP connect timeout per call (Req doesn't allow
   `connect_options` with a custom Finch pool). Use `connect_timeout` in the
   repo config.

@@ -6,7 +6,10 @@ defmodule Couchx.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Registry, keys: :unique, name: Couchx.Pool.Registry}
+      {Registry, keys: :unique, name: Couchx.Pool.Registry},
+      {Registry, keys: :unique, name: Couchx.DynamicRepo.Registry},
+      {DynamicSupervisor, strategy: :one_for_one, name: Couchx.DynamicRepoSupervisor},
+      Couchx.DynamicRepo.Janitor
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Couchx.Supervisor)

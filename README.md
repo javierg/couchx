@@ -81,12 +81,12 @@ Each repo has its own HTTP connection pool (`pool_size`, default 10).
 Requests run in the calling process; there is no connection GenServer in
 between. Every query path accepts these per-call options:
 
-* `:call_timeout` (with `:timeout` honored as a legacy fallback) - how long to
-  wait for response data from CouchDB, default 30 seconds.
+* `:call_timeout` (with `:timeout` honored as a legacy fallback) - deadline
+  for the whole response from CouchDB, default 30 seconds.
 * `:pool_timeout` - how long to wait for a free connection when all
   `pool_size` connections are in use, default 5 seconds.
-* `:recv_timeout` / `:receive_timeout` - overrides `:call_timeout` for the
-  socket receive timeout directly.
+* `:recv_timeout` / `:receive_timeout` - longest gap allowed between two
+  chunks of response data; defaults to `:call_timeout`.
 
 Exceeding either timeout exits with `{:timeout, _}`, as before.
 

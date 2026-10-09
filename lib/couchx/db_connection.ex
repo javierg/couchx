@@ -8,10 +8,10 @@ defmodule Couchx.DbConnection do
 
   Timeouts per call:
 
-    * `:call_timeout` (or legacy `:timeout`) - how long to wait for response
-      data from CouchDB, default 30_000 ms. It's applied as Req's
-      `:receive_timeout`. Exits with `{:timeout, _}` when exceeded.
-    * `:recv_timeout` / `:receive_timeout` - overrides the above directly.
+    * `:call_timeout` (or legacy `:timeout`) - deadline for the whole
+      response, default 30_000 ms. Exits with `{:timeout, _}` when exceeded.
+    * `:recv_timeout` / `:receive_timeout` - longest gap allowed between two
+      chunks of response data; defaults to the call timeout.
     * `:pool_timeout` - time to wait for a free connection, default 5_000 ms.
       Exits with `{:timeout, _}` when exceeded.
 
@@ -214,7 +214,12 @@ defmodule Couchx.DbConnection do
     {pool_timeout, req_options} = Keyword.pop(prepare_req_options(options), :pool_timeout)
 
     base
-    |> Keyword.merge(headers: state.headers, receive_timeout: state.timeout, retry: false)
+    |> Keyword.merge(
+      headers: state.headers,
+      request_timeout: state.timeout,
+      receive_timeout: state.timeout,
+      retry: false
+    )
     |> Keyword.put(:finch, finch_options(state.finch, pool_timeout))
     |> Keyword.merge(req_options)
     |> Req.request!()

@@ -173,6 +173,49 @@ defmodule Couchx.PoolTest do
     refute stderr =~ "deprecated"
   end
 
+  defp trickle_server(chunks, interval) do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+
+    spawn_link(fn ->
+      {:ok, socket} = :gen_tcp.accept(listen)
+      {:ok, _request} = :gen_tcp.recv(socket, 0)
+      :gen_tcp.send(socket, "HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n")
+
+      Enum.reduce_while(1..chunks, :ok, fn _, _ ->
+        Process.sleep(interval)
+
+        case :gen_tcp.send(socket, "1\r\n \r\n") do
+          :ok -> {:cont, :ok}
+          {:error, _} -> {:halt, :ok}
+        end
+      end)
+
+      :gen_tcp.close(socket)
+      :gen_tcp.close(listen)
+    end)
+
+    port
+  end
+
+  test "call_timeout is a deadline for the whole response, not per chunk", %{config: config} do
+    port = trickle_server(10, 40)
+    pool = start_pool(Keyword.put(config, :port, port))
+
+    {elapsed, result} =
+      :timer.tc(fn ->
+        catch_exit(Couchx.DbConnection.raw_request(pool, :get, "trickle", call_timeout: 150))
+      end)
+
+    assert {:timeout, _} = result
+    assert elapsed < 350_000, "request ran past call_timeout while data kept arriving"
+  end
+
+  test "Finch still reports pool checkout timeouts with the message we match on" do
+    finch_pool = Path.join(Mix.Project.deps_paths()[:finch], "lib/finch/http1/pool.ex")
+    assert File.read!(finch_pool) =~ "unable to provide a connection"
+  end
+
   test "adapter ensure_all_started starts :couchx" do
     assert {:ok, _} = Couchx.Adapter.ensure_all_started(nil, :temporary)
     assert Process.whereis(Couchx.Pool.Registry)

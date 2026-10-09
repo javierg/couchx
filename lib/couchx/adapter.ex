@@ -83,6 +83,14 @@ defmodule Couchx.Adapter do
 
   Any Repo call inside the callback function will be run in a dynamically supervised connection.
 
+  The first `run` for a repo name and set of options starts that repo and
+  leaves it running, so later runs with the same name and options reuse its
+  connections. The same name with different credentials or database gets its
+  own repo. Repos idle for `config :couchx, dynamic_repo_idle_timeout: ms`
+  (default 5 minutes, `:infinity` to disable) are stopped automatically. Stop
+  them earlier with `MyDynamicRepo.stop_repo(name)` (all repos for that name)
+  or `MyDynamicRepo.stop_repo(name, opts)`.
+
 
   ## Migrations
 
